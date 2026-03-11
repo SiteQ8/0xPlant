@@ -21,7 +21,7 @@
 
 ## What is 0xPlant
 
-0xPlant is a ProxCenter-style management interface for ICS, OT, and IoT infrastructure. Instead of managing VMs and containers, you manage PLCs, RTUs, HMIs, DCS, safety systems, switches, and IoT sensors.
+0xPlant is an enterprise management platform for ICS, OT, and IoT infrastructure. Instead of managing VMs and containers, you manage PLCs, RTUs, HMIs, DCS, safety systems, switches, and IoT sensors.
 
 **The name:** `0x` (hexadecimal prefix — because we speak in registers and opcodes) + `Plant` (the factory floor we protect). Geeky by design.
 
@@ -41,17 +41,23 @@
 
 | Module | Description |
 |--------|-------------|
-| **Dashboard** | Overview: 2,461 assets, asset distribution by type (PLC/RTU/HMI/DCS/SIS/Switch/IoT/Server), recent activity feed with color-coded events |
-| **Inventory** | Full asset table: ID, name, type, vendor/model, firmware, protocol, Purdue zone, IP, status. 12 demo assets from Siemens, Rockwell, Yokogawa, Schneider, GE, ABB, Palo Alto, Hirschmann, AVEVA, OSIsoft |
-| **Topology** | Protocol connection map: 8 protocols with connection counts, unique communication pairs, cross-zone flows, and anomaly detection (unauthorized SMBv1 flagged) |
-| **Protocols** | 9 ICS/OT protocol cards: Modbus, S7comm, OPC UA, EtherNet/IP, DNP3, MQTT, BACnet, IEC 104, TriStation — with port numbers, standards, and live traffic stats |
-| **Purdue Zones** | ISA/IEC 62443 zone model (L0-L5 + DMZ) with asset counts, conduit counts, findings, and health status per zone |
-| **Events** | Real-time event log: security incidents, config changes, remote access sessions, patch deployments, backups — with timestamps and source details |
-| **Change Tracking** | Configuration change audit: who changed what, when, whether it was approved (CAB reference), unauthorized changes flagged in red |
-| **Alerts** | Active alerts: 3 critical, 8 warning, 12 info. Alert table with severity, affected asset, description, timestamp, and status |
-| **Task Center** | Operational tasks: patching schedules, firmware upgrades, investigations, pen tests — with assignee, due date, priority, and status |
-| **Vulnerabilities** | ICS-CERT correlation: 6 real CVEs matched to inventory with CVSS scores, affected asset counts, available patches, and remediation status |
-| **Settings** | Discovery, alerts, SIEM integration, golden image monitoring, rogue device detection, protocol baseline enforcement |
+| **Dashboard** | Overview: 2,461 assets, distribution by type (10 asset categories), recent activity feed |
+| **Inventory** | Full asset table: 12 demo assets from Siemens, Rockwell, Yokogawa, Schneider, GE, ABB, AVEVA, OSIsoft, Palo Alto, Hirschmann |
+| **Topology** | Protocol connection map: 8 protocols with connection counts, zone flows, anomaly detection |
+| **Protocols** | 9 ICS protocol cards: Modbus, S7comm, OPC UA, EtherNet/IP, DNP3, MQTT, BACnet, IEC 104, TriStation |
+| **Purdue Zones** | ISA/IEC 62443 zone model (L0-L5 + DMZ) with health status per zone |
+| **Events** | Real-time event log with timestamps, source IPs, and rule references |
+| **Change Tracking** | Configuration audit: CAB approval references, unauthorized changes flagged |
+| **Alerts** | Active alerts: critical/warning/info with severity badges and status |
+| **Task Center** | Patching schedules, investigations, pen tests with assignees and due dates |
+| **Vulnerabilities** | 6 real CVEs matched to inventory with CVSS scores and remediation status |
+| **Compliance** | 6-framework compliance tracking (IEC 62443, NIST 800-82, NERC CIP, ATT&CK, CIS, CISA). Gap analysis with risk owner and target dates |
+| **Audit Log** | Immutable event trail: 14,823 events, user actions, auth failures, config changes, denied actions — 365-day retention |
+| **Users & RBAC** | 24 users, 5 roles (Admin, Engineer, SOC, Operator, Vendor). Full permissions matrix. MFA enforcement (TOTP/FIDO2). Account lockout |
+| **Backups** | Automated daily backups: PLCs, RTUs, switches, golden images. 3-2-1 rule, AES-256 encryption, air-gapped copy, quarterly restore testing |
+| **Reports** | 8 scheduled reports: executive summary, vulnerability status, compliance gaps, asset inventory, remote access audit, patch compliance, IEC 62443 audit package, incident summary |
+| **Integrations** | 8 connected platforms: Splunk SIEM, ServiceNow ITSM, CrowdStrike EDR, Azure AD SSO, Palo Alto Panorama, Tenable.ot, PagerDuty, Jira. REST API, Syslog, SNMP, Webhooks, SAML, LDAP |
+| **Settings** | Discovery, alerts, SIEM forwarding, golden image drift, rogue device detection, protocol baselines |
 
 ---
 
@@ -92,12 +98,13 @@ Login: `admin` / `Plant@2025`
 
 ## Design
 
-**Sidebar navigation** (like ProxCenter/Vercel) instead of top tabs. Clean light content area with dark navy sidebar. Fira Code mono for technical data, Source Sans 3 for body text. Emerald green (`#10B981`) accent.
+**Sidebar navigation** with persistent left panel for rapid context-switching. Clean light content area with dark navy sidebar. Fira Code mono for technical data, Source Sans 3 for body text. Emerald green (`#10B981`) accent.
 
-**11 pages** organized into 3 sections:
+**17 pages** organized into 4 sections:
 - **Infrastructure:** Inventory, Topology, Protocols, Purdue Zones
 - **Operations:** Events, Change Tracking, Alerts, Task Center
-- **Security:** Vulnerabilities, Settings
+- **Security:** Vulnerabilities, Compliance, Audit Log
+- **Enterprise:** Users & RBAC, Backups, Reports, Integrations, Settings
 
 ---
 

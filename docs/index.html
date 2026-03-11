@@ -220,6 +220,32 @@ tr:hover td { background: #F1F5F9; }
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
     Vulnerabilities
   </div>
+  <div class="side-item" data-page="compliance">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    Compliance
+  </div>
+  <div class="side-item" data-page="audit">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    Audit Log
+  </div>
+
+  <div class="side-section">Enterprise</div>
+  <div class="side-item" data-page="users">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+    Users &amp; RBAC
+  </div>
+  <div class="side-item" data-page="backups">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Backups
+  </div>
+  <div class="side-item" data-page="reports">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    Reports
+  </div>
+  <div class="side-item" data-page="integrations">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="8" height="8" rx="1"/></svg>
+    Integrations
+  </div>
   <div class="side-item" data-page="settings">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
     Settings
@@ -454,6 +480,187 @@ tr:hover td { background: #F1F5F9; }
 </div>
 </div>
 
+<!-- ===== COMPLIANCE ===== -->
+<div class="page" id="pg-compliance">
+<div class="page-head"><h2>Compliance Management</h2><p>Multi-framework compliance tracking and gap analysis</p></div>
+<div class="metrics">
+  <div class="metric"><div class="metric-val" style="color:var(--green)">71.5%</div><div class="metric-label">Overall Score</div><div class="metric-change" style="color:var(--green)">↑ 3.2% this quarter</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--blue)">892</div><div class="metric-label">Controls Implemented</div><div class="metric-change">of 1,247 total</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--red)">23</div><div class="metric-label">Critical Gaps</div><div class="metric-change" style="color:var(--green)">↓ 4 from last quarter</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--amber)">6</div><div class="metric-label">Frameworks Tracked</div></div>
+</div>
+<div class="card">
+  <div class="card-title">Framework Compliance Status</div>
+  <table><thead><tr><th>Framework</th><th>Version</th><th>Score</th><th>Implemented</th><th>Gaps</th><th>Next Audit</th><th>Status</th></tr></thead><tbody>
+  <tr><td style="font-weight:600">ISA/IEC 62443</td><td>2018</td><td><span class="badge b-amber">68%</span></td><td>204 / 300</td><td>96</td><td>Apr 2026</td><td><span class="badge b-blue">In Progress</span></td></tr>
+  <tr><td style="font-weight:600">NIST SP 800-82</td><td>Rev 3</td><td><span class="badge b-green">75%</span></td><td>188 / 250</td><td>62</td><td>Jun 2026</td><td><span class="badge b-blue">In Progress</span></td></tr>
+  <tr><td style="font-weight:600">NERC CIP</td><td>v7</td><td><span class="badge b-green">82%</span></td><td>164 / 200</td><td>36</td><td>Mar 2026</td><td><span class="badge b-amber">Audit Due</span></td></tr>
+  <tr><td style="font-weight:600">MITRE ATT&CK ICS</td><td>v14</td><td><span class="badge b-green">84%</span></td><td>47 / 56</td><td>9</td><td>—</td><td><span class="badge b-green">Active</span></td></tr>
+  <tr><td style="font-weight:600">CIS Controls</td><td>v8.1</td><td><span class="badge b-green">74%</span></td><td>133 / 180</td><td>47</td><td>Sep 2026</td><td><span class="badge b-blue">In Progress</span></td></tr>
+  <tr><td style="font-weight:600">CISA ICS Baseline</td><td>2024</td><td><span class="badge b-amber">65%</span></td><td>156 / 240</td><td>84</td><td>Jul 2026</td><td><span class="badge b-blue">In Progress</span></td></tr>
+  </tbody></table>
+</div>
+<div class="card">
+  <div class="card-title">Top Critical Gaps</div>
+  <table><thead><tr><th>Gap</th><th>Framework</th><th>Risk</th><th>Owner</th><th>Target Date</th></tr></thead><tbody>
+  <tr><td>No network segmentation between L2 and L1 for BACnet</td><td>IEC 62443</td><td><span class="badge b-red">Critical</span></td><td>NetSec-1</td><td>Mar 30</td></tr>
+  <tr><td>Missing MFA on 3 engineering workstations</td><td>NIST 800-82</td><td><span class="badge b-red">Critical</span></td><td>OT-Admin</td><td>Mar 15</td></tr>
+  <tr><td>No incident response plan for SIS compromise</td><td>IEC 62443</td><td><span class="badge b-red">Critical</span></td><td>CISO</td><td>Apr 1</td></tr>
+  <tr><td>SNMP v1/v2c on 8 managed switches</td><td>CIS Controls</td><td><span class="badge b-amber">High</span></td><td>Net-Admin</td><td>Mar 20</td></tr>
+  <tr><td>No SBOM for 4 vendor-supplied applications</td><td>CISA Baseline</td><td><span class="badge b-amber">High</span></td><td>Procurement</td><td>Apr 15</td></tr>
+  </tbody></table>
+</div>
+</div>
+
+<!-- ===== AUDIT LOG ===== -->
+<div class="page" id="pg-audit">
+<div class="page-head"><h2>Audit Log</h2><p>Immutable record of all platform actions, configuration changes, and access events</p></div>
+<div class="metrics">
+  <div class="metric"><div class="metric-val" style="color:var(--blue)">14,823</div><div class="metric-label">Events (30 days)</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--green)">12</div><div class="metric-label">Active Users</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--red)">47</div><div class="metric-label">Denied Actions</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--amber)">365 days</div><div class="metric-label">Retention</div></div>
+</div>
+<div class="card">
+  <table><thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Target</th><th>Result</th><th>IP</th></tr></thead><tbody>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">14:23:41 UTC</td><td>system</td><td>BLOCK</td><td>PLC-047 (Modbus write)</td><td><span class="badge b-red">Denied</span></td><td>10.10.8.99</td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">14:21:08 UTC</td><td>unknown</td><td>AUTH_FAIL x5</td><td>PLC-001 (S7comm)</td><td><span class="badge b-red">Locked</span></td><td>10.10.4.40</td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">13:45:11 UTC</td><td>ot-admin-2</td><td>CONFIG_CHANGE</td><td>SW-003 (VLAN 120)</td><td><span class="badge b-green">Approved</span></td><td>10.10.4.50</td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">13:30:00 UTC</td><td>siemens-support</td><td>REMOTE_SESSION</td><td>PLC-001</td><td><span class="badge b-green">Active</span></td><td>203.0.113.50</td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">12:00:00 UTC</td><td>it-admin-1</td><td>PATCH_DEPLOY</td><td>SRV-001 (AVEVA)</td><td><span class="badge b-green">Success</span></td><td>10.10.4.60</td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">11:00:00 UTC</td><td>system</td><td>BACKUP</td><td>47 PLCs, 12 RTUs</td><td><span class="badge b-green">Complete</span></td><td>10.10.5.100</td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">09:00:00 UTC</td><td>admin</td><td>LOGIN</td><td>0xPlant Console</td><td><span class="badge b-green">Success</span></td><td>10.10.4.50</td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">08:45:00 UTC</td><td>soc-analyst-1</td><td>REPORT_EXPORT</td><td>Weekly vulnerability report</td><td><span class="badge b-green">Success</span></td><td>10.10.5.80</td></tr>
+  </tbody></table>
+</div>
+</div>
+
+<!-- ===== USERS & RBAC ===== -->
+<div class="page" id="pg-users">
+<div class="page-head"><h2>Users &amp; Access Control</h2><p>Role-based access control, MFA enforcement, and session management</p></div>
+<div class="metrics">
+  <div class="metric"><div class="metric-val" style="color:var(--blue)">24</div><div class="metric-label">Total Users</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--green)">12</div><div class="metric-label">Active Now</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--green)">100%</div><div class="metric-label">MFA Enforced</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--red)">2</div><div class="metric-label">Locked Accounts</div></div>
+</div>
+<div class="grid2">
+<div class="card">
+  <div class="card-title">User Accounts</div>
+  <table><thead><tr><th>User</th><th>Role</th><th>Zone Access</th><th>MFA</th><th>Last Login</th><th>Status</th></tr></thead><tbody>
+  <tr><td>admin</td><td><span class="badge b-red">Plant Admin</span></td><td>All Zones</td><td style="color:var(--green)">✓ TOTP</td><td style="font-family:var(--mono);font-size:0.72rem">09:00 UTC today</td><td><span class="badge b-green">Active</span></td></tr>
+  <tr><td>ot-engineer-1</td><td><span class="badge b-amber">OT Engineer</span></td><td>L1-L3</td><td style="color:var(--green)">✓ TOTP</td><td style="font-family:var(--mono);font-size:0.72rem">08:30 UTC today</td><td><span class="badge b-green">Active</span></td></tr>
+  <tr><td>ot-engineer-2</td><td><span class="badge b-amber">OT Engineer</span></td><td>L1-L3</td><td style="color:var(--green)">✓ FIDO2</td><td style="font-family:var(--mono);font-size:0.72rem">13:45 UTC today</td><td><span class="badge b-green">Active</span></td></tr>
+  <tr><td>soc-analyst-1</td><td><span class="badge b-blue">SOC Analyst</span></td><td>Read-only All</td><td style="color:var(--green)">✓ TOTP</td><td style="font-family:var(--mono);font-size:0.72rem">08:45 UTC today</td><td><span class="badge b-green">Active</span></td></tr>
+  <tr><td>operator-1</td><td><span class="badge b-green">Operator</span></td><td>L2 HMI Only</td><td style="color:var(--green)">✓ TOTP</td><td style="font-family:var(--mono);font-size:0.72rem">06:00 UTC today</td><td><span class="badge b-green">Active</span></td></tr>
+  <tr><td>netsec-1</td><td><span class="badge b-amber">Network Sec</span></td><td>L3-DMZ</td><td style="color:var(--green)">✓ FIDO2</td><td style="font-family:var(--mono);font-size:0.72rem">Yesterday</td><td><span class="badge b-green">Active</span></td></tr>
+  <tr><td>vendor-siemens</td><td><span class="badge" style="background:#F3E8FF;color:#7C3AED;border:1px solid #DDD6FE">Vendor</span></td><td>PLC-001 Only</td><td style="color:var(--green)">✓ TOTP</td><td style="font-family:var(--mono);font-size:0.72rem">13:30 UTC today</td><td><span class="badge b-blue">Session Active</span></td></tr>
+  <tr><td>failed-user</td><td><span class="badge b-amber">OT Engineer</span></td><td>—</td><td>—</td><td style="font-family:var(--mono);font-size:0.72rem">14:21 UTC today</td><td><span class="badge b-red">Locked (5 fails)</span></td></tr>
+  </tbody></table>
+</div>
+<div class="card">
+  <div class="card-title">Role Permissions Matrix</div>
+  <table><thead><tr><th>Permission</th><th>Admin</th><th>Engineer</th><th>SOC</th><th>Operator</th><th>Vendor</th></tr></thead><tbody>
+  <tr><td>View all assets</td><td style="color:var(--green)">✓</td><td style="color:var(--green)">✓</td><td style="color:var(--green)">✓</td><td style="color:var(--amber)">Zone</td><td style="color:var(--amber)">Asset</td></tr>
+  <tr><td>Modify configurations</td><td style="color:var(--green)">✓</td><td style="color:var(--green)">✓ + CAB</td><td style="color:var(--red)">✗</td><td style="color:var(--red)">✗</td><td style="color:var(--amber)">Scoped</td></tr>
+  <tr><td>Deploy patches</td><td style="color:var(--green)">✓</td><td style="color:var(--green)">✓ + CAB</td><td style="color:var(--red)">✗</td><td style="color:var(--red)">✗</td><td style="color:var(--red)">✗</td></tr>
+  <tr><td>Manage users</td><td style="color:var(--green)">✓</td><td style="color:var(--red)">✗</td><td style="color:var(--red)">✗</td><td style="color:var(--red)">✗</td><td style="color:var(--red)">✗</td></tr>
+  <tr><td>View audit log</td><td style="color:var(--green)">✓</td><td style="color:var(--green)">✓</td><td style="color:var(--green)">✓</td><td style="color:var(--red)">✗</td><td style="color:var(--red)">✗</td></tr>
+  <tr><td>Export reports</td><td style="color:var(--green)">✓</td><td style="color:var(--green)">✓</td><td style="color:var(--green)">✓</td><td style="color:var(--red)">✗</td><td style="color:var(--red)">✗</td></tr>
+  <tr><td>Remote access (JIT)</td><td style="color:var(--green)">✓</td><td style="color:var(--green)">✓ + Approval</td><td style="color:var(--red)">✗</td><td style="color:var(--red)">✗</td><td style="color:var(--green)">✓ + Recorded</td></tr>
+  <tr><td>Kill remote session</td><td style="color:var(--green)">✓</td><td style="color:var(--red)">✗</td><td style="color:var(--green)">✓</td><td style="color:var(--red)">✗</td><td style="color:var(--red)">✗</td></tr>
+  </tbody></table>
+</div>
+</div>
+</div>
+
+<!-- ===== BACKUPS ===== -->
+<div class="page" id="pg-backups">
+<div class="page-head"><h2>Configuration Backups</h2><p>Automated and manual backups for PLC programs, switch configs, server images, and golden baselines</p></div>
+<div class="metrics">
+  <div class="metric"><div class="metric-val" style="color:var(--green)">1,247</div><div class="metric-label">Configs Backed Up</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--blue)">Daily</div><div class="metric-label">Backup Schedule</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--green)">100%</div><div class="metric-label">Last Backup Success</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--green)">Encrypted</div><div class="metric-label">AES-256 + Offsite</div></div>
+</div>
+<div class="card">
+  <div class="card-title">Recent Backup Jobs</div>
+  <table><thead><tr><th>Time</th><th>Type</th><th>Scope</th><th>Size</th><th>Duration</th><th>Verified</th><th>Status</th></tr></thead><tbody>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">11:00 UTC today</td><td>Scheduled</td><td>47 PLCs — program logic + parameters</td><td>2.3 GB</td><td>18 min</td><td style="color:var(--green)">✓ Checksum</td><td><span class="badge b-green">Complete</span></td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">11:05 UTC today</td><td>Scheduled</td><td>12 RTUs — configuration + firmware</td><td>890 MB</td><td>8 min</td><td style="color:var(--green)">✓ Checksum</td><td><span class="badge b-green">Complete</span></td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">11:10 UTC today</td><td>Scheduled</td><td>8 switches — running config</td><td>12 MB</td><td>2 min</td><td style="color:var(--green)">✓ Checksum</td><td><span class="badge b-green">Complete</span></td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">11:15 UTC today</td><td>Scheduled</td><td>Golden images — 6 HMIs, 4 servers</td><td>48 GB</td><td>45 min</td><td style="color:var(--green)">✓ Checksum</td><td><span class="badge b-green">Complete</span></td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">12:00 UTC yesterday</td><td>Manual</td><td>SRV-001 pre-patch snapshot</td><td>8 GB</td><td>5 min</td><td style="color:var(--green)">✓ Checksum</td><td><span class="badge b-green">Complete</span></td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">11:00 UTC yesterday</td><td>Scheduled</td><td>Full daily backup (all assets)</td><td>62 GB</td><td>78 min</td><td style="color:var(--green)">✓ Checksum</td><td><span class="badge b-green">Complete</span></td></tr>
+  </tbody></table>
+</div>
+<div class="grid2">
+<div class="card">
+  <div class="card-title">Backup Policy</div>
+  <div class="setting-row"><div><div class="setting-label">3-2-1 Rule</div><div class="setting-desc">3 copies, 2 media types, 1 offsite</div></div><span class="badge b-green">Enforced</span></div>
+  <div class="setting-row"><div><div class="setting-label">Encryption</div><div class="setting-desc">AES-256 for all backup archives</div></div><span class="badge b-green">Active</span></div>
+  <div class="setting-row"><div><div class="setting-label">Restore Testing</div><div class="setting-desc">Quarterly validation with documented results</div></div><span class="badge b-green">Last: Feb 28</span></div>
+  <div class="setting-row"><div><div class="setting-label">Air-gapped Copy</div><div class="setting-desc">Immutable backup isolated from network</div></div><span class="badge b-green">Active</span></div>
+  <div class="setting-row"><div><div class="setting-label">Retention</div><div class="setting-desc">Daily: 30 days · Weekly: 12 weeks · Monthly: 12 months</div></div><span class="badge b-green">Enforced</span></div>
+</div>
+<div class="card">
+  <div class="card-title">Restore History</div>
+  <table><thead><tr><th>Date</th><th>Asset</th><th>Reason</th><th>RTO</th><th>Result</th></tr></thead><tbody>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">Feb 28</td><td>PLC-012</td><td>Quarterly restore test</td><td>12 min</td><td><span class="badge b-green">Success</span></td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">Feb 28</td><td>SRV-002</td><td>Quarterly restore test</td><td>22 min</td><td><span class="badge b-green">Success</span></td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">Jan 15</td><td>HMI-005</td><td>Ransomware recovery</td><td>45 min</td><td><span class="badge b-green">Success</span></td></tr>
+  </tbody></table>
+</div>
+</div>
+</div>
+
+<!-- ===== REPORTS ===== -->
+<div class="page" id="pg-reports">
+<div class="page-head"><h2>Reports</h2><p>Scheduled and on-demand reports for compliance audits, executive summaries, and operational reviews</p></div>
+<div class="card">
+  <div class="card-title">Scheduled Reports</div>
+  <table><thead><tr><th>Report</th><th>Frequency</th><th>Recipients</th><th>Last Generated</th><th>Format</th><th>Status</th></tr></thead><tbody>
+  <tr><td style="font-weight:600">Executive Security Summary</td><td>Weekly</td><td>CISO, CTO, Plant Manager</td><td style="font-family:var(--mono);font-size:0.72rem">Mar 10</td><td>PDF</td><td><span class="badge b-green">Delivered</span></td></tr>
+  <tr><td style="font-weight:600">Vulnerability Status Report</td><td>Weekly</td><td>SOC Team, OT Engineers</td><td style="font-family:var(--mono);font-size:0.72rem">Mar 10</td><td>PDF + CSV</td><td><span class="badge b-green">Delivered</span></td></tr>
+  <tr><td style="font-weight:600">Compliance Gap Report</td><td>Monthly</td><td>CISO, Compliance Officer</td><td style="font-family:var(--mono);font-size:0.72rem">Mar 1</td><td>PDF</td><td><span class="badge b-green">Delivered</span></td></tr>
+  <tr><td style="font-weight:600">Asset Inventory Report</td><td>Monthly</td><td>IT Director, OT Manager</td><td style="font-family:var(--mono);font-size:0.72rem">Mar 1</td><td>PDF + XLSX</td><td><span class="badge b-green">Delivered</span></td></tr>
+  <tr><td style="font-weight:600">Remote Access Audit</td><td>Monthly</td><td>CISO, HR</td><td style="font-family:var(--mono);font-size:0.72rem">Mar 1</td><td>PDF</td><td><span class="badge b-green">Delivered</span></td></tr>
+  <tr><td style="font-weight:600">Patch Compliance Report</td><td>Bi-weekly</td><td>OT Engineers, IT Infra</td><td style="font-family:var(--mono);font-size:0.72rem">Mar 8</td><td>PDF + CSV</td><td><span class="badge b-green">Delivered</span></td></tr>
+  <tr><td style="font-weight:600">IEC 62443 Audit Package</td><td>Quarterly</td><td>External Auditor</td><td style="font-family:var(--mono);font-size:0.72rem">Jan 15</td><td>PDF (encrypted)</td><td><span class="badge b-blue">Next: Apr 15</span></td></tr>
+  <tr><td style="font-weight:600">Incident Response Summary</td><td>Monthly</td><td>CISO, Legal</td><td style="font-family:var(--mono);font-size:0.72rem">Mar 1</td><td>PDF</td><td><span class="badge b-green">Delivered</span></td></tr>
+  </tbody></table>
+</div>
+</div>
+
+<!-- ===== INTEGRATIONS ===== -->
+<div class="page" id="pg-integrations">
+<div class="page-head"><h2>Integrations</h2><p>API-first integration with enterprise security and IT service management platforms</p></div>
+<div class="grid2">
+<div class="card">
+  <div class="card-title">Connected Platforms</div>
+  <table><thead><tr><th>Platform</th><th>Type</th><th>Protocol</th><th>Status</th><th>Last Sync</th></tr></thead><tbody>
+  <tr><td style="font-weight:600">Splunk Enterprise</td><td>SIEM</td><td>Syslog + HEC</td><td><span class="badge b-green">Connected</span></td><td style="font-family:var(--mono);font-size:0.72rem">Real-time</td></tr>
+  <tr><td style="font-weight:600">ServiceNow ITSM</td><td>Ticketing</td><td>REST API</td><td><span class="badge b-green">Connected</span></td><td style="font-family:var(--mono);font-size:0.72rem">5 min ago</td></tr>
+  <tr><td style="font-weight:600">CrowdStrike Falcon</td><td>EDR</td><td>REST API</td><td><span class="badge b-green">Connected</span></td><td style="font-family:var(--mono);font-size:0.72rem">Real-time</td></tr>
+  <tr><td style="font-weight:600">Azure Active Directory</td><td>IAM / SSO</td><td>SAML 2.0</td><td><span class="badge b-green">Connected</span></td><td style="font-family:var(--mono);font-size:0.72rem">Real-time</td></tr>
+  <tr><td style="font-weight:600">Palo Alto Panorama</td><td>Firewall Mgmt</td><td>REST API</td><td><span class="badge b-green">Connected</span></td><td style="font-family:var(--mono);font-size:0.72rem">15 min ago</td></tr>
+  <tr><td style="font-weight:600">Tenable.ot</td><td>Vuln Scanner</td><td>REST API</td><td><span class="badge b-amber">Degraded</span></td><td style="font-family:var(--mono);font-size:0.72rem">2 hours ago</td></tr>
+  <tr><td style="font-weight:600">PagerDuty</td><td>Alerting</td><td>Events API v2</td><td><span class="badge b-green">Connected</span></td><td style="font-family:var(--mono);font-size:0.72rem">Real-time</td></tr>
+  <tr><td style="font-weight:600">Jira</td><td>Task Tracking</td><td>REST API</td><td><span class="badge b-green">Connected</span></td><td style="font-family:var(--mono);font-size:0.72rem">10 min ago</td></tr>
+  </tbody></table>
+</div>
+<div class="card">
+  <div class="card-title">API Access</div>
+  <div class="setting-row"><div><div class="setting-label">REST API</div><div class="setting-desc">https://api.0xplant.local/v1 — OpenAPI 3.0 spec</div></div><span class="badge b-green">Active</span></div>
+  <div class="setting-row"><div><div class="setting-label">Syslog Forwarding</div><div class="setting-desc">UDP/TCP/TLS to 10.10.5.100:514</div></div><span class="badge b-green">Active</span></div>
+  <div class="setting-row"><div><div class="setting-label">SNMP Traps</div><div class="setting-desc">SNMPv3 traps to NMS at 10.10.5.101</div></div><span class="badge b-green">Active</span></div>
+  <div class="setting-row"><div><div class="setting-label">Webhook Notifications</div><div class="setting-desc">Critical alerts → Slack #ot-security + PagerDuty</div></div><span class="badge b-green">Active</span></div>
+  <div class="setting-row"><div><div class="setting-label">SAML SSO</div><div class="setting-desc">Azure AD federation — all users</div></div><span class="badge b-green">Active</span></div>
+  <div class="setting-row"><div><div class="setting-label">LDAP Sync</div><div class="setting-desc">Hourly sync from corp AD for user provisioning</div></div><span class="badge b-green">Active</span></div>
+</div>
+</div>
+</div>
+
 </div><!-- /content -->
 </div><!-- /main-wrap -->
 </div><!-- /app -->
@@ -486,7 +693,7 @@ document.getElementById('fillCred').addEventListener('click', function() { userI
 
 // Sidebar navigation
 var pageTitle = document.getElementById('pageTitle');
-var titles = {dashboard:'Dashboard',inventory:'Asset Inventory',topology:'Network Topology',protocols:'Protocol Analysis',zones:'Purdue Zones',events:'Event Log',changes:'Change Tracking',alerts:'Alerts',tasks:'Task Center',vulns:'Vulnerability Management',settings:'Settings'};
+var titles = {dashboard:'Dashboard',inventory:'Asset Inventory',topology:'Network Topology',protocols:'Protocol Analysis',zones:'Purdue Zones',events:'Event Log',changes:'Change Tracking',alerts:'Alerts',tasks:'Task Center',vulns:'Vulnerability Management',compliance:'Compliance Management',audit:'Audit Log',users:'Users & Access Control',backups:'Configuration Backups',reports:'Reports',integrations:'Integrations',settings:'Settings'};
 
 document.querySelectorAll('.side-item').forEach(function(item) {
   item.addEventListener('click', function() {
