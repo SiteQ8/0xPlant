@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0xPlant — ICS/OT/IoT Management</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%2310B981'/><text x='8' y='12' text-anchor='middle' font-size='7' fill='%23000' font-weight='bold'>0x</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --sidebar: #0F172A; --sidebar2: #1E293B; --sidebar-t: #94A3B8; --sidebar-h: #E2E8F0;
+  --bg: #F8FAFC; --white: #FFFFFF; --border: #E2E8F0; --border2: #CBD5E1;
+  --text: #0F172A; --text2: #475569; --text3: #94A3B8;
+  --green: #10B981; --green2: #059669; --green-bg: #ECFDF5; --green-border: #A7F3D0;
+  --red: #EF4444; --red-bg: #FEF2F2; --red-border: #FECACA;
+  --amber: #F59E0B; --amber-bg: #FFFBEB; --amber-border: #FDE68A;
+  --blue: #3B82F6; --blue-bg: #EFF6FF; --blue-border: #BFDBFE;
+  --purple: #8B5CF6;
+  --mono: 'Fira Code', monospace; --sans: 'Source Sans 3', system-ui, sans-serif;
+}
+body { font-family: var(--sans); background: var(--bg); color: var(--text); display: flex; min-height: 100vh; font-size: 14px; }
+
+/* ===== LOGIN ===== */
+.login-overlay { position: fixed; inset: 0; background: var(--sidebar); z-index: 10000; display: flex; align-items: center; justify-content: center; }
+.login-overlay.off { display: none; }
+.login-card { background: var(--white); border-radius: 16px; padding: 40px; width: 420px; max-width: 92vw; box-shadow: 0 25px 50px rgba(0,0,0,0.25); }
+.login-card h1 { font-family: var(--mono); font-size: 1.6rem; font-weight: 700; color: var(--green); margin-bottom: 2px; }
+.login-card .tagline { font-size: 0.82rem; color: var(--text3); margin-bottom: 24px; }
+.login-card .field { margin-bottom: 14px; }
+.login-card label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text2); margin-bottom: 4px; }
+.login-card input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-family: var(--mono); font-size: 0.85rem; color: var(--text); outline: none; background: var(--bg); }
+.login-card input:focus { border-color: var(--green); }
+.login-card .btn { width: 100%; padding: 11px; background: var(--green); color: #fff; border: none; border-radius: 8px; font-family: var(--sans); font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+.login-card .btn:hover { background: var(--green2); }
+.login-card .err { color: var(--red); font-size: 0.75rem; text-align: center; margin-top: 6px; min-height: 16px; }
+.login-card .demo { margin-top: 16px; padding: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; }
+.login-card .demo b { font-family: var(--mono); font-size: 0.62rem; color: var(--green); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; }
+.login-card .demo code { background: var(--white); border: 1px solid var(--border); padding: 2px 8px; border-radius: 4px; font-family: var(--mono); font-size: 0.78rem; cursor: pointer; }
+.login-card .demo code:hover { border-color: var(--green); color: var(--green); }
+
+/* ===== APP SHELL ===== */
+.app { display: none; width: 100%; }
+.app.on { display: flex; }
+
+/* Sidebar */
+.side { width: 240px; background: var(--sidebar); color: var(--sidebar-t); min-height: 100vh; position: fixed; top: 0; left: 0; bottom: 0; display: flex; flex-direction: column; z-index: 100; }
+.side-brand { padding: 20px 18px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #334155; }
+.side-brand h2 { font-family: var(--mono); font-size: 1rem; font-weight: 700; color: var(--green); }
+.side-brand span { font-size: 0.6rem; color: #475569; background: #334155; padding: 2px 6px; border-radius: 3px; }
+.side-section { padding: 12px 12px 4px; font-family: var(--mono); font-size: 0.58rem; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 1px; }
+.side-item { display: flex; align-items: center; gap: 10px; padding: 8px 18px; margin: 1px 8px; border-radius: 6px; font-size: 0.82rem; cursor: pointer; transition: all 0.1s; color: var(--sidebar-t); }
+.side-item:hover { background: #1E293B; color: var(--sidebar-h); }
+.side-item.active { background: #10B98115; color: var(--green); font-weight: 600; }
+.side-item svg { width: 16px; height: 16px; opacity: 0.6; flex-shrink: 0; }
+.side-item.active svg { opacity: 1; }
+.side-footer { margin-top: auto; padding: 14px 18px; border-top: 1px solid #334155; font-size: 0.68rem; color: #475569; }
+.side-footer a { color: var(--green); text-decoration: none; }
+
+/* Main */
+.main-wrap { margin-left: 240px; flex: 1; min-height: 100vh; }
+.topbar { background: var(--white); border-bottom: 1px solid var(--border); padding: 0 24px; height: 52px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+.topbar-title { font-weight: 700; font-size: 1rem; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.topbar-badge { display: flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 0.68rem; padding: 4px 10px; border-radius: 20px; }
+.topbar-badge.live { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.user-menu { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.78rem; color: var(--text2); cursor: pointer; background: var(--white); }
+.user-menu:hover { border-color: var(--red); color: var(--red); }
+.content { padding: 24px; }
+
+/* Page */
+.page { display: none; }
+.page.active { display: block; }
+.page-head { margin-bottom: 20px; }
+.page-head h2 { font-size: 1.25rem; font-weight: 700; }
+.page-head p { font-size: 0.82rem; color: var(--text3); margin-top: 2px; }
+
+/* Metrics */
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+@media (max-width: 1000px) { .metrics { grid-template-columns: repeat(2, 1fr); } }
+.metric { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+.metric-val { font-family: var(--mono); font-size: 1.8rem; font-weight: 700; line-height: 1; }
+.metric-label { font-size: 0.75rem; color: var(--text3); margin-top: 6px; }
+.metric-change { font-family: var(--mono); font-size: 0.68rem; margin-top: 4px; }
+
+/* Cards */
+.card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 12px; }
+.card-title { font-family: var(--mono); font-size: 0.72rem; font-weight: 600; color: var(--text2); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+@media (max-width: 900px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+th { text-align: left; padding: 10px 12px; font-family: var(--mono); font-size: 0.65rem; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--border); background: var(--bg); }
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text2); }
+tr:hover td { background: #F1F5F9; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-family: var(--mono); font-size: 0.62rem; font-weight: 600; }
+.b-green { background: var(--green-bg); color: var(--green2); border: 1px solid var(--green-border); }
+.b-red { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+.b-amber { background: var(--amber-bg); color: #B45309; border: 1px solid var(--amber-border); }
+.b-blue { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border); }
+
+/* Zone bars */
+.zone-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; }
+.zone-color { width: 4px; height: 32px; border-radius: 2px; flex-shrink: 0; }
+.zone-name { font-weight: 600; font-size: 0.85rem; }
+.zone-info { font-family: var(--mono); font-size: 0.68rem; color: var(--text3); }
+
+/* Event log */
+.ev-item { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.ev-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.ev-time { font-family: var(--mono); font-size: 0.62rem; color: var(--text3); }
+.ev-title { font-weight: 600; font-size: 0.82rem; }
+.ev-desc { font-size: 0.75rem; color: var(--text2); }
+
+/* Proto card */
+.proto-item { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+.proto-name { font-family: var(--mono); font-size: 0.88rem; font-weight: 600; margin-bottom: 2px; }
+.proto-port { font-family: var(--mono); font-size: 0.68rem; color: var(--text3); }
+.proto-stat { font-size: 0.75rem; color: var(--text2); margin-top: 6px; }
+
+/* Settings */
+.setting-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.setting-row:last-child { border-bottom: none; }
+.setting-label { font-size: 0.88rem; font-weight: 500; }
+.setting-desc { font-size: 0.72rem; color: var(--text3); margin-top: 2px; }
+.toggle { width: 44px; height: 24px; border-radius: 12px; background: var(--border2); position: relative; cursor: pointer; flex-shrink: 0; }
+.toggle.on { background: var(--green); }
+.toggle::after { content: ''; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: white; top: 3px; left: 3px; transition: transform 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+.toggle.on::after { transform: translateX(20px); }
+
+@media (max-width: 768px) {
+  .side { display: none; }
+  .main-wrap { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <h1>0xPlant</h1>
+    <div class="tagline">ICS/OT/IoT Infrastructure Management</div>
+    <div class="field">
+      <label>Username</label>
+      <input type="text" id="loginUser" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="loginPass">
+    </div>
+    <button class="btn" id="loginBtn">Sign In</button>
+    <div class="err" id="loginErr"></div>
+    <div class="demo">
+      <b>Demo Credentials</b>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <code id="fillCred">admin / Plant@2025</code>
+        <span style="font-size:0.65rem;color:var(--text3)">Click to auto-fill</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="appShell">
+
+<!-- Sidebar -->
+<div class="side">
+  <div class="side-brand">
+    <h2>0xPlant</h2>
+    <span>v1.0</span>
+  </div>
+
+  <div class="side-section">Overview</div>
+  <div class="side-item active" data-page="dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    Dashboard
+  </div>
+
+  <div class="side-section">Infrastructure</div>
+  <div class="side-item" data-page="inventory">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="12" y1="9" x2="12" y2="21"/></svg>
+    Inventory
+  </div>
+  <div class="side-item" data-page="topology">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><line x1="12" y1="8" x2="5" y2="16"/><line x1="12" y1="8" x2="19" y2="16"/></svg>
+    Topology
+  </div>
+  <div class="side-item" data-page="protocols">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+    Protocols
+  </div>
+  <div class="side-item" data-page="zones">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+    Purdue Zones
+  </div>
+
+  <div class="side-section">Operations</div>
+  <div class="side-item" data-page="events">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Events
+  </div>
+  <div class="side-item" data-page="changes">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+    Change Tracking
+  </div>
+  <div class="side-item" data-page="alerts">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+    Alerts
+  </div>
+  <div class="side-item" data-page="tasks">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+    Task Center
+  </div>
+
+  <div class="side-section">Security</div>
+  <div class="side-item" data-page="vulns">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    Vulnerabilities
+  </div>
+  <div class="side-item" data-page="settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    Settings
+  </div>
+
+  <div class="side-footer">
+    <a href="https://github.com/SiteQ8/0xPlant">GitHub</a> · <a href="https://github.com/SiteQ8">@SiteQ8</a><br>
+    Ali AlEnezi · MIT License
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="main-wrap">
+<div class="topbar">
+  <div class="topbar-title" id="pageTitle">Dashboard</div>
+  <div class="topbar-right">
+    <div class="topbar-badge live">● Connected — 2,461 assets</div>
+    <button class="user-menu" id="logoutBtn">admin ⏻</button>
+  </div>
+</div>
+<div class="content">
+
+<!-- ===== DASHBOARD ===== -->
+<div class="page active" id="pg-dashboard">
+<div class="metrics">
+  <div class="metric"><div class="metric-val" style="color:var(--green)">2,461</div><div class="metric-label">Total Assets</div><div class="metric-change" style="color:var(--green)">↑ 12 this week</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--blue)">2,318</div><div class="metric-label">Online</div><div class="metric-change" style="color:var(--green)">94.2% availability</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--red)">67</div><div class="metric-label">Vulnerabilities</div><div class="metric-change" style="color:var(--red)">↑ 3 new this week</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--amber)">23</div><div class="metric-label">Open Alerts</div><div class="metric-change" style="color:var(--green)">↓ 5 from last week</div></div>
+</div>
+<div class="grid2">
+<div class="card">
+  <div class="card-title">Asset Distribution by Type</div>
+  <table><thead><tr><th>Type</th><th>Count</th><th>Online</th><th>Alerts</th></tr></thead><tbody>
+  <tr><td style="font-weight:600">PLC</td><td>487</td><td><span class="badge b-green">98%</span></td><td>3</td></tr>
+  <tr><td style="font-weight:600">RTU</td><td>156</td><td><span class="badge b-green">95%</span></td><td>1</td></tr>
+  <tr><td style="font-weight:600">HMI</td><td>312</td><td><span class="badge b-green">97%</span></td><td>4</td></tr>
+  <tr><td style="font-weight:600">DCS</td><td>89</td><td><span class="badge b-green">100%</span></td><td>0</td></tr>
+  <tr><td style="font-weight:600">SIS</td><td>24</td><td><span class="badge b-green">100%</span></td><td>0</td></tr>
+  <tr><td style="font-weight:600">Switch/Router</td><td>234</td><td><span class="badge b-amber">91%</span></td><td>8</td></tr>
+  <tr><td style="font-weight:600">IoT Sensor</td><td>847</td><td><span class="badge b-amber">89%</span></td><td>5</td></tr>
+  <tr><td style="font-weight:600">Server</td><td>156</td><td><span class="badge b-green">99%</span></td><td>2</td></tr>
+  <tr><td style="font-weight:600">Firewall</td><td>12</td><td><span class="badge b-green">100%</span></td><td>0</td></tr>
+  <tr><td style="font-weight:600">Other</td><td>144</td><td><span class="badge b-green">93%</span></td><td>0</td></tr>
+  </tbody></table>
+</div>
+<div class="card">
+  <div class="card-title">Recent Activity</div>
+  <div class="ev-item"><div class="ev-dot" style="background:var(--red)"></div><div><div class="ev-time">2 min ago</div><div class="ev-title">PLC-047 — Unauthorized write blocked</div><div class="ev-desc">Modbus FC 0x06 from 10.10.8.99</div></div></div>
+  <div class="ev-item"><div class="ev-dot" style="background:var(--amber)"></div><div><div class="ev-time">14 min ago</div><div class="ev-title">SW-003 — Config change detected</div><div class="ev-desc">VLAN 120 modified by ot-admin-2</div></div></div>
+  <div class="ev-item"><div class="ev-dot" style="background:var(--green)"></div><div><div class="ev-time">28 min ago</div><div class="ev-title">IOT-094 — Onboarded successfully</div><div class="ev-desc">Temperature sensor, Zone L0, MQTT</div></div></div>
+  <div class="ev-item"><div class="ev-dot" style="background:var(--blue)"></div><div><div class="ev-time">1 hour ago</div><div class="ev-title">SRV-001 — Patch applied</div><div class="ev-desc">AVEVA SCADA 2023.1 → 2023.2</div></div></div>
+  <div class="ev-item"><div class="ev-dot" style="background:var(--amber)"></div><div><div class="ev-time">2 hours ago</div><div class="ev-title">FW-001 — Rule review completed</div><div class="ev-desc">4 stale rules removed, 2 updated</div></div></div>
+  <div class="ev-item"><div class="ev-dot" style="background:var(--green)"></div><div><div class="ev-time">3 hours ago</div><div class="ev-title">Backup completed — all critical assets</div><div class="ev-desc">Configuration backup for 47 PLCs, 12 RTUs</div></div></div>
+</div>
+</div>
+</div>
+
+<!-- ===== INVENTORY ===== -->
+<div class="page" id="pg-inventory">
+<div class="page-head"><h2>Asset Inventory</h2><p>Complete infrastructure inventory — passively discovered and manually registered assets</p></div>
+<div class="card">
+  <div style="overflow-x:auto"><table>
+    <thead><tr><th>Asset ID</th><th>Name</th><th>Type</th><th>Vendor / Model</th><th>Firmware</th><th>Protocol</th><th>Zone</th><th>IP Address</th><th>Status</th></tr></thead>
+    <tbody>
+    <tr><td style="font-family:var(--mono);font-size:0.75rem">PLC-001</td><td>Main Process Controller</td><td>PLC</td><td>Siemens S7-1500</td><td>V2.9.7</td><td>S7comm+</td><td>L1</td><td>10.10.1.10</td><td><span class="badge b-green">ONLINE</span></td></tr>
+    <tr><td style="font-family:var(--mono);font-size:0.75rem">PLC-002</td><td>Water Treatment PLC</td><td>PLC</td><td>Allen-Bradley CLX</td><td>V33.011</td><td>EtherNet/IP</td><td>L1</td><td>10.10.1.11</td><td><span class="badge b-red">VULN</span></td></tr>
+    <tr><td style="font-family:var(--mono);font-size:0.75rem">SIS-001</td><td>Safety System</td><td>SIS</td><td>Triconex 3008</td><td>V10.6</td><td>TriStation</td><td>L1</td><td>10.10.1.100</td><td><span class="badge b-green">ONLINE</span></td></tr>
+    <tr><td style="font-family:var(--mono);font-size:0.75rem">DCS-001</td><td>CENTUM VP</td><td>DCS</td><td>Yokogawa</td><td>R6.09</td><td>OPC UA</td><td>L1</td><td>10.10.1.200</td><td><span class="badge b-green">ONLINE</span></td></tr>
+    <tr><td style="font-family:var(--mono);font-size:0.75rem">RTU-001</td><td>Substation RTU</td><td>RTU</td><td>GE D400</td><td>V8.1</td><td>DNP3</td><td>L1</td><td>10.10.2.20</td><td><span class="badge b-green">ONLINE</span></td></tr>
+    <tr><td style="font-family:var(--mono);font-size:0.75rem">HMI-001</td><td>Operator Station 1</td><td>HMI</td><td>AVEVA InTouch</td><td>2023 R1</td><td>OPC UA</td><td>L2</td><td>10.10.3.30</td><td><span class="badge b-amber">PATCH</span></td></tr>
+    <tr><td style="font-family:var(--mono);font-size:0.75rem">EWS-001</td><td>Engineering WS</td><td>EWS</td><td>Siemens TIA Portal</td><td>V18</td><td>S7comm+</td><td>L3</td><td>10.10.4.40</td><td><span class="badge b-green">ONLINE</span></td></tr>
+    <tr><td style="font-family:var(--mono);font-size:0.75rem">SRV-001</td><td>SCADA Server</td><td>Server</td><td>AVEVA</td><td>2023.2</td><td>Modbus</td><td>L3</td><td>10.10.4.41</td><td><span class="badge b-green">ONLINE</span></td></tr>
+    <tr><td style="font-family:var(--mono);font-size:0.75rem">SRV-002</td><td>Historian</td><td>Server</td><td>OSIsoft PI</td><td>2023 SP1</td><td>OPC UA</td><td>L3.5</td><td>10.10.5.50</td><td><span class="badge b-green">ONLINE</span></td></tr>
+    <tr><td style="font-family:var(--mono);font-size:0.75rem">FW-001</td><td>OT Firewall</td><td>Firewall</td><td>Palo Alto PA-3260</td><td>PAN-OS 11.1</td><td>—</td><td>DMZ</td><td>10.10.5.1</td><td><span class="badge b-green">ONLINE</span></td></tr>
+    <tr><td style="font-family:var(--mono);font-size:0.75rem">SW-001</td><td>Industrial Switch</td><td>Switch</td><td>Hirschmann RS20</td><td>V9.4.2</td><td>SNMP</td><td>L2</td><td>10.10.3.1</td><td><span class="badge b-amber">PATCH</span></td></tr>
+    <tr><td style="font-family:var(--mono);font-size:0.75rem">IOT-001</td><td>MQTT Broker</td><td>Broker</td><td>Mosquitto</td><td>V2.0.18</td><td>MQTT</td><td>L3</td><td>10.10.9.10</td><td><span class="badge b-blue">MONITOR</span></td></tr>
+    </tbody>
+  </table></div>
+</div>
+</div>
+
+<!-- ===== TOPOLOGY ===== -->
+<div class="page" id="pg-topology">
+<div class="page-head"><h2>Network Topology</h2><p>Auto-discovered network map with Purdue levels, protocols, and connection paths</p></div>
+<div class="card">
+  <div class="card-title">Protocol Connection Map</div>
+  <table><thead><tr><th>Protocol</th><th>Port</th><th>Connections</th><th>Unique Pairs</th><th>Zones</th><th>Status</th></tr></thead><tbody>
+  <tr><td style="font-weight:600">Modbus/TCP</td><td style="font-family:var(--mono)">502</td><td>487</td><td>23</td><td>L1↔L2, L2↔L3</td><td><span class="badge b-green">Normal</span></td></tr>
+  <tr><td style="font-weight:600">S7comm+</td><td style="font-family:var(--mono)">102</td><td>156</td><td>8</td><td>L1↔L2</td><td><span class="badge b-green">Normal</span></td></tr>
+  <tr><td style="font-weight:600">OPC UA</td><td style="font-family:var(--mono)">4840</td><td>234</td><td>18</td><td>L2↔L3, L3↔DMZ</td><td><span class="badge b-green">Normal</span></td></tr>
+  <tr><td style="font-weight:600">EtherNet/IP</td><td style="font-family:var(--mono)">44818</td><td>312</td><td>14</td><td>L1↔L2</td><td><span class="badge b-green">Normal</span></td></tr>
+  <tr><td style="font-weight:600">DNP3</td><td style="font-family:var(--mono)">20000</td><td>48</td><td>6</td><td>L1↔L2</td><td><span class="badge b-green">Normal</span></td></tr>
+  <tr><td style="font-weight:600">MQTT</td><td style="font-family:var(--mono)">1883</td><td>847</td><td>94</td><td>L0↔L3</td><td><span class="badge b-amber">TLS missing (12)</span></td></tr>
+  <tr><td style="font-weight:600">BACnet/IP</td><td style="font-family:var(--mono)">47808</td><td>64</td><td>8</td><td>L2</td><td><span class="badge b-green">Normal</span></td></tr>
+  <tr><td style="font-weight:600">SMBv1</td><td style="font-family:var(--mono)">445</td><td>3</td><td>2</td><td>L2↔L3</td><td><span class="badge b-red">Unauthorized</span></td></tr>
+  </tbody></table>
+</div>
+</div>
+
+<!-- ===== PROTOCOLS ===== -->
+<div class="page" id="pg-protocols">
+<div class="page-head"><h2>Protocol Analysis</h2><p>ICS/OT protocol reference and real-time traffic analysis</p></div>
+<div class="grid3">
+  <div class="proto-item"><div class="proto-name">Modbus/TCP</div><div class="proto-port">:502 — IEC 61158</div><div class="proto-stat">487 active · 23 PLCs/RTUs · Normal baseline</div></div>
+  <div class="proto-item"><div class="proto-name">S7comm+</div><div class="proto-port">:102 — Siemens</div><div class="proto-stat">156 active · 8 S7-1500s · Normal baseline</div></div>
+  <div class="proto-item"><div class="proto-name">OPC UA</div><div class="proto-port">:4840 — IEC 62541</div><div class="proto-stat">234 active · 18 pairs · Encrypted</div></div>
+  <div class="proto-item"><div class="proto-name">EtherNet/IP</div><div class="proto-port">:44818 — IEC 61158</div><div class="proto-stat">312 active · 14 Allen-Bradley · Normal</div></div>
+  <div class="proto-item"><div class="proto-name">DNP3</div><div class="proto-port">:20000 — IEEE 1815</div><div class="proto-stat">48 active · 6 substations · SA enabled</div></div>
+  <div class="proto-item"><div class="proto-name">MQTT</div><div class="proto-port">:1883 — ISO 20922</div><div class="proto-stat">847 active · 94 IoT sensors · ⚠ 12 unencrypted</div></div>
+  <div class="proto-item"><div class="proto-name">BACnet/IP</div><div class="proto-port">:47808 — ISO 16484-5</div><div class="proto-stat">64 active · 8 BMS controllers</div></div>
+  <div class="proto-item"><div class="proto-name">IEC 60870-5-104</div><div class="proto-port">:2404 — IEC 60870</div><div class="proto-stat">24 active · Power grid SCADA</div></div>
+  <div class="proto-item"><div class="proto-name">TriStation</div><div class="proto-port">:1502 — Schneider</div><div class="proto-stat">2 active · Safety systems · Isolated</div></div>
+</div>
+</div>
+
+<!-- ===== ZONES ===== -->
+<div class="page" id="pg-zones">
+<div class="page-head"><h2>Purdue Zones</h2><p>ISA/IEC 62443 zone and conduit model — asset distribution and security status</p></div>
+<div class="zone-bar"><div class="zone-color" style="background:#8B5CF6"></div><div style="flex:1"><div class="zone-name">L5 — Enterprise Network</div><div class="zone-info">142 assets · 3 conduits · 2 findings</div></div><span class="badge b-green">Healthy</span></div>
+<div class="zone-bar"><div class="zone-color" style="background:#3B82F6"></div><div style="flex:1"><div class="zone-name">L4 — Site Business Planning</div><div class="zone-info">89 assets · 4 conduits · 5 findings</div></div><span class="badge b-amber">Warning</span></div>
+<div class="zone-bar"><div class="zone-color" style="background:#06B6D4"></div><div style="flex:1"><div class="zone-name">L3.5 — Industrial DMZ</div><div class="zone-info">24 assets · 6 conduits · 1 finding — Jump host, patch relay, unidirectional GW</div></div><span class="badge b-green">Healthy</span></div>
+<div class="zone-bar"><div class="zone-color" style="background:#14B8A6"></div><div style="flex:1"><div class="zone-name">L3 — Site Manufacturing Operations</div><div class="zone-info">156 assets · 8 conduits · 8 findings — SCADA, Historian, EWS</div></div><span class="badge b-amber">Warning</span></div>
+<div class="zone-bar"><div class="zone-color" style="background:#10B981"></div><div style="flex:1"><div class="zone-name">L2 — Area Supervisory Control</div><div class="zone-info">312 assets · 7 conduits · 4 findings — HMIs, Area PLCs, Switches</div></div><span class="badge b-green">Healthy</span></div>
+<div class="zone-bar"><div class="zone-color" style="background:#EAB308"></div><div style="flex:1"><div class="zone-name">L1 — Basic Control</div><div class="zone-info">487 assets · 4 conduits · 12 findings — PLCs, RTUs, DCS, SIS</div></div><span class="badge b-red">Critical</span></div>
+<div class="zone-bar"><div class="zone-color" style="background:#F97316"></div><div style="flex:1"><div class="zone-name">L0 — Physical Process</div><div class="zone-info">1,251 assets · 2 conduits · 3 findings — Sensors, actuators, VFDs</div></div><span class="badge b-green">Healthy</span></div>
+</div>
+
+<!-- ===== EVENTS ===== -->
+<div class="page" id="pg-events">
+<div class="page-head"><h2>Event Log</h2><p>Real-time events from all OT/ICS/IoT infrastructure</p></div>
+<div class="card">
+  <div class="ev-item"><div class="ev-dot" style="background:var(--red)"></div><div><div class="ev-time">14:23:41 UTC</div><div class="ev-title">SECURITY — Unauthorized Modbus write blocked on PLC-047</div><div class="ev-desc">Source: 10.10.8.99 → Dest: 10.10.1.47 · FC 0x06 · Blocked by IDS rule #247</div></div></div>
+  <div class="ev-item"><div class="ev-dot" style="background:var(--red)"></div><div><div class="ev-time">14:21:08 UTC</div><div class="ev-title">SECURITY — S7comm auth failure on PLC-001 (5 attempts)</div><div class="ev-desc">Source: EWS-001 (10.10.4.40) · Account locked for 30 minutes</div></div></div>
+  <div class="ev-item"><div class="ev-dot" style="background:var(--amber)"></div><div><div class="ev-time">14:09:22 UTC</div><div class="ev-title">CONFIG — Golden image mismatch on HMI-003</div><div class="ev-desc">12 registry changes detected · Unauthorized software: TeamViewer.exe</div></div></div>
+  <div class="ev-item"><div class="ev-dot" style="background:var(--amber)"></div><div><div class="ev-time">13:45:11 UTC</div><div class="ev-title">NETWORK — Rogue device on VLAN 120 (L2)</div><div class="ev-desc">MAC: 00:1A:2B:3C:4D:5E · Not in asset inventory · Port disabled</div></div></div>
+  <div class="ev-item"><div class="ev-dot" style="background:var(--blue)"></div><div><div class="ev-time">13:30:00 UTC</div><div class="ev-title">REMOTE — JIT vendor session started (Siemens)</div><div class="ev-desc">User: siemens-support → PLC-001 · Approved by OT-Admin-1 · Session recorded</div></div></div>
+  <div class="ev-item"><div class="ev-dot" style="background:var(--green)"></div><div><div class="ev-time">12:00:00 UTC</div><div class="ev-title">PATCH — AVEVA SCADA updated on SRV-001</div><div class="ev-desc">Version: 2023.1 → 2023.2 · Verified · CVE-2023-34360 remediated</div></div></div>
+  <div class="ev-item"><div class="ev-dot" style="background:var(--green)"></div><div><div class="ev-time">11:00:00 UTC</div><div class="ev-title">BACKUP — Configuration backup completed</div><div class="ev-desc">47 PLCs, 12 RTUs, 8 switches · All golden images updated</div></div></div>
+</div>
+</div>
+
+<!-- ===== CHANGES ===== -->
+<div class="page" id="pg-changes">
+<div class="page-head"><h2>Change Tracking</h2><p>Configuration changes, firmware updates, and policy modifications</p></div>
+<div class="card">
+  <table><thead><tr><th>Time</th><th>Asset</th><th>Change Type</th><th>User</th><th>Details</th><th>Approved</th></tr></thead><tbody>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">14:09 UTC</td><td>HMI-003</td><td><span class="badge b-red">UNAUTHORIZED</span></td><td>Unknown</td><td>12 registry changes, TeamViewer installed</td><td style="color:var(--red)">✗ No</td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">13:45 UTC</td><td>SW-003</td><td><span class="badge b-amber">CONFIG</span></td><td>ot-admin-2</td><td>VLAN 120 modified — added port 24</td><td style="color:var(--green)">✓ CAB-2024-187</td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">12:00 UTC</td><td>SRV-001</td><td><span class="badge b-blue">PATCH</span></td><td>it-admin-1</td><td>AVEVA SCADA 2023.1 → 2023.2</td><td style="color:var(--green)">✓ CAB-2024-186</td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">11:00 UTC</td><td>47 PLCs</td><td><span class="badge b-green">BACKUP</span></td><td>System</td><td>Scheduled configuration backup</td><td style="color:var(--green)">✓ Automated</td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.72rem">Yesterday</td><td>FW-001</td><td><span class="badge b-amber">CONFIG</span></td><td>netsec-1</td><td>4 stale rules removed, 2 updated</td><td style="color:var(--green)">✓ CAB-2024-185</td></tr>
+  </tbody></table>
+</div>
+</div>
+
+<!-- ===== ALERTS ===== -->
+<div class="page" id="pg-alerts">
+<div class="page-head"><h2>Alerts</h2><p>Active alerts across all monitored infrastructure</p></div>
+<div class="metrics">
+  <div class="metric"><div class="metric-val" style="color:var(--red)">3</div><div class="metric-label">Critical</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--amber)">8</div><div class="metric-label">Warning</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--blue)">12</div><div class="metric-label">Info</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--green)">19</div><div class="metric-label">Resolved (7d)</div></div>
+</div>
+<div class="card">
+  <table><thead><tr><th>Severity</th><th>Asset</th><th>Alert</th><th>Time</th><th>Status</th></tr></thead><tbody>
+  <tr><td><span class="badge b-red">CRITICAL</span></td><td>PLC-047</td><td>Unauthorized Modbus write attempt</td><td style="font-family:var(--mono);font-size:0.72rem">14:23 UTC</td><td>Active</td></tr>
+  <tr><td><span class="badge b-red">CRITICAL</span></td><td>PLC-001</td><td>S7comm authentication brute-force</td><td style="font-family:var(--mono);font-size:0.72rem">14:21 UTC</td><td>Active</td></tr>
+  <tr><td><span class="badge b-red">CRITICAL</span></td><td>HMI-003</td><td>Golden image mismatch — unauthorized software</td><td style="font-family:var(--mono);font-size:0.72rem">14:09 UTC</td><td>Active</td></tr>
+  <tr><td><span class="badge b-amber">WARNING</span></td><td>VLAN 120</td><td>Rogue device detected — MAC not in inventory</td><td style="font-family:var(--mono);font-size:0.72rem">13:45 UTC</td><td>Investigating</td></tr>
+  <tr><td><span class="badge b-amber">WARNING</span></td><td>SW-001</td><td>Firmware V9.4.2 — CVE-2021-33541 unpatched</td><td style="font-family:var(--mono);font-size:0.72rem">12:00 UTC</td><td>Scheduled</td></tr>
+  <tr><td><span class="badge b-amber">WARNING</span></td><td>12 MQTT</td><td>MQTT connections without TLS encryption</td><td style="font-family:var(--mono);font-size:0.72rem">08:00 UTC</td><td>Under review</td></tr>
+  </tbody></table>
+</div>
+</div>
+
+<!-- ===== TASKS ===== -->
+<div class="page" id="pg-tasks">
+<div class="page-head"><h2>Task Center</h2><p>Scheduled maintenance, patching, and operational tasks</p></div>
+<div class="card">
+  <table><thead><tr><th>Task</th><th>Asset(s)</th><th>Assigned</th><th>Due</th><th>Priority</th><th>Status</th></tr></thead><tbody>
+  <tr><td>Patch Siemens S7-1500 (CVE-2023-28489)</td><td>PLC-001, PLC-003, PLC-012</td><td>ot-eng-1</td><td>Mar 15</td><td><span class="badge b-red">P1</span></td><td>Scheduled</td></tr>
+  <tr><td>Upgrade Hirschmann switch firmware</td><td>SW-001, SW-003, SW-005</td><td>net-admin</td><td>Mar 18</td><td><span class="badge b-amber">P2</span></td><td>Testing</td></tr>
+  <tr><td>Investigate HMI-003 golden image drift</td><td>HMI-003</td><td>soc-analyst</td><td>Mar 11</td><td><span class="badge b-red">P1</span></td><td>In Progress</td></tr>
+  <tr><td>Enable TLS on MQTT IoT sensors</td><td>12 IoT sensors</td><td>iot-team</td><td>Mar 20</td><td><span class="badge b-amber">P2</span></td><td>Planning</td></tr>
+  <tr><td>Quarterly firewall rule review</td><td>FW-001, FW-002</td><td>netsec-1</td><td>Mar 30</td><td><span class="badge b-blue">P3</span></td><td>Not Started</td></tr>
+  <tr><td>Annual penetration test — OT environment</td><td>All zones</td><td>External vendor</td><td>Apr 15</td><td><span class="badge b-blue">P3</span></td><td>Contracted</td></tr>
+  </tbody></table>
+</div>
+</div>
+
+<!-- ===== VULNERABILITIES ===== -->
+<div class="page" id="pg-vulns">
+<div class="page-head"><h2>Vulnerability Management</h2><p>ICS-CERT advisory correlation with asset inventory</p></div>
+<div class="metrics">
+  <div class="metric"><div class="metric-val" style="color:var(--red)">23</div><div class="metric-label">Critical (CVSS 9+)</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--amber)">44</div><div class="metric-label">High (CVSS 7-8.9)</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--blue)">142</div><div class="metric-label">Medium (CVSS 4-6.9)</div></div>
+  <div class="metric"><div class="metric-val" style="color:var(--green)">89%</div><div class="metric-label">Patched within SLA</div></div>
+</div>
+<div class="card">
+  <table><thead><tr><th>CVE</th><th>Product</th><th>CVSS</th><th>Assets</th><th>Patch</th><th>Status</th></tr></thead><tbody>
+  <tr><td style="font-family:var(--mono);font-size:0.75rem">CVE-2023-28489</td><td>Siemens S7-1500</td><td><span class="badge b-red">9.8</span></td><td>3</td><td>V3.0.1</td><td>Scheduled — Mar 15</td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.75rem">CVE-2022-1159</td><td>Rockwell CompactLogix</td><td><span class="badge b-red">8.6</span></td><td>7</td><td>V34.011</td><td>Testing in staging</td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.75rem">CVE-2023-34360</td><td>AVEVA SCADA</td><td><span class="badge b-amber">8.1</span></td><td>2</td><td>2023.2</td><td><span class="badge b-green">Patched</span></td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.75rem">CVE-2021-33541</td><td>Hirschmann RS20</td><td><span class="badge b-amber">7.5</span></td><td>8</td><td>V9.5.0</td><td>Deploying next week</td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.75rem">CVE-2023-0955</td><td>JCI BMS Controller</td><td><span class="badge b-blue">6.5</span></td><td>4</td><td>V4.4</td><td>Compensating control</td></tr>
+  <tr><td style="font-family:var(--mono);font-size:0.75rem">CVE-2023-28366</td><td>Eclipse Mosquitto</td><td><span class="badge b-blue">5.3</span></td><td>1</td><td>V2.0.19</td><td><span class="badge b-green">Patched</span></td></tr>
+  </tbody></table>
+</div>
+</div>
+
+<!-- ===== SETTINGS ===== -->
+<div class="page" id="pg-settings">
+<div class="page-head"><h2>Settings</h2><p>Platform configuration and preferences</p></div>
+<div class="grid2">
+<div class="card">
+  <div class="card-title">Discovery</div>
+  <div class="setting-row"><div><div class="setting-label">Passive discovery (SPAN/TAP)</div><div class="setting-desc">Continuously discover assets from network traffic</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+  <div class="setting-row"><div><div class="setting-label">Auto-classify Purdue zone</div><div class="setting-desc">Automatically assign Purdue level based on traffic patterns</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+  <div class="setting-row"><div><div class="setting-label">Rogue device alerts</div><div class="setting-desc">Alert when unknown MAC addresses appear on OT VLANs</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+  <div class="setting-row"><div><div class="setting-label">Active probing (maintenance only)</div><div class="setting-desc">Enable active scanning during approved windows</div></div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+</div>
+<div class="card">
+  <div class="card-title">Alerts & Notifications</div>
+  <div class="setting-row"><div><div class="setting-label">Email alerts for critical events</div><div class="setting-desc">Send email to CISO and SOC team</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+  <div class="setting-row"><div><div class="setting-label">Syslog forwarding (SIEM)</div><div class="setting-desc">Forward events to SIEM at 10.10.5.100</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+  <div class="setting-row"><div><div class="setting-label">Golden image drift alerts</div><div class="setting-desc">Alert when HMI/server config diverges from baseline</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+  <div class="setting-row"><div><div class="setting-label">Unauthorized protocol alerts</div><div class="setting-desc">Alert on protocols not in zone policy baseline</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+</div>
+</div>
+</div>
+
+</div><!-- /content -->
+</div><!-- /main-wrap -->
+</div><!-- /app -->
+
+<script>
+// Login
+var overlay = document.getElementById('loginOverlay');
+var app = document.getElementById('appShell');
+var userInput = document.getElementById('loginUser');
+var passInput = document.getElementById('loginPass');
+var errDiv = document.getElementById('loginErr');
+
+document.getElementById('loginBtn').addEventListener('click', function() {
+  var u = userInput.value, p = passInput.value;
+  if (u === 'admin' && p === 'Plant@2025') {
+    overlay.classList.add('off');
+    app.classList.add('on');
+  } else {
+    errDiv.textContent = (u || p) ? 'Invalid credentials.' : 'Enter credentials.';
+  }
+});
+document.getElementById('logoutBtn').addEventListener('click', function() {
+  overlay.classList.remove('off');
+  app.classList.remove('on');
+  userInput.value = ''; passInput.value = ''; errDiv.textContent = '';
+});
+passInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
+userInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') passInput.focus(); });
+document.getElementById('fillCred').addEventListener('click', function() { userInput.value = 'admin'; passInput.value = 'Plant@2025'; });
+
+// Sidebar navigation
+var pageTitle = document.getElementById('pageTitle');
+var titles = {dashboard:'Dashboard',inventory:'Asset Inventory',topology:'Network Topology',protocols:'Protocol Analysis',zones:'Purdue Zones',events:'Event Log',changes:'Change Tracking',alerts:'Alerts',tasks:'Task Center',vulns:'Vulnerability Management',settings:'Settings'};
+
+document.querySelectorAll('.side-item').forEach(function(item) {
+  item.addEventListener('click', function() {
+    var pg = this.dataset.page;
+    document.querySelectorAll('.side-item').forEach(function(i) { i.classList.remove('active'); });
+    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+    this.classList.add('active');
+    document.getElementById('pg-' + pg).classList.add('active');
+    pageTitle.textContent = titles[pg] || pg;
+  });
+});
+</script>
+</body>
+</html>
