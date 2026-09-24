@@ -43,7 +43,11 @@ class Program:
         self.scan = 0
         self.interlock_word = 0
         self.alarm_word = 0
+        self.faults = None          # FaultBoard from the testbed instrumentation (optional)
         self.defaults()
+
+    def actuator_failed(self, name: str) -> bool:
+        return bool(self.faults and self.faults.actuator_failed(name))
 
     # --- helpers ---
     def get(self, name: str) -> float:
@@ -85,6 +89,8 @@ class Program:
         self.logic(dt_h)
         self.physics(dt_h)
         self.publish()
+        if self.faults:
+            self.faults.apply_sensors(self)
         hr = self.store.holding
         hr[HR_MODE] = 1
         hr[HR_SCAN] = self.scan & 0xFFFF
@@ -191,7 +197,7 @@ class Intake(Program):
             if self.consume("PUMP_STOP_CMD"):
                 self.pump_run = False
             self.valve_open = self.coil("VALVE_OPEN_CMD")
-        if self.lahh:
+        if self.lahh or self.actuator_failed("P-101"):
             self.pump_run = False
         self.speed_cmd = speed_sp if self.pump_run else 0.0
 
@@ -352,6 +358,11 @@ class Treatment(Program):
         else:
             self.dosing_run = self.coil("DOSING_ENABLE_CMD") and dosing_wanted and not self.aahh
             self.stroke = manual_stroke
+        if self.actuator_failed("P-201"):
+            self.dosing_run = False
+        if self.actuator_failed("P-202"):
+            self.transfer_run = False
+            self.flow_cmd = 0.0
         if not self.dosing_run:
             self.prev_error = 0.0
 
@@ -501,6 +512,10 @@ class Distribution(Program):
             self.speed_cmd = max_speed * 0.85
         if tripped:
             self.run = [False, False]
+        if self.actuator_failed("P-301"):
+            self.run[0] = False
+        if self.actuator_failed("P-302"):
+            self.run[1] = False
 
         self.interlock_word = (1 if self.lall else 0) | (2 if self.pahh else 0)
         self.alarm_word = 4 if (self.pressure < self.get("PALL_LIMIT") and any(self.run)) else 0

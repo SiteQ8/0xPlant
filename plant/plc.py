@@ -9,6 +9,7 @@ from typing import Dict, Optional
 from modbuslite import DataStore, DeviceIdentity, ModbusClient, ModbusServer, codec
 
 from .config import PLCConfig
+from .faults import FaultBoard, start_fault_server
 from .programs import PROGRAMS, Program
 from .registers import ENGINEER_HR, OPERATOR_HR, STATUS_HR
 
@@ -38,6 +39,10 @@ class SoftPLC:
         self.remote_clients: Dict[str, ModbusClient] = {}
         self._stop = asyncio.Event()
         self.writes = 0
+        self.faults = FaultBoard()
+        self.program.faults = self.faults
+        self._sim_httpd = None
+        self._base_revision = identity.revision
 
     # --- Modbus hooks ---
     def _write_guard(self, table: str, address: int, values) -> Optional[int]:
@@ -58,6 +63,27 @@ class SoftPLC:
         if values != old:
             log.info("%s write %s[%d] %s -> %s", self.cfg.name, table, address, old, values)
 
+    def _set_identity(self, revision: str) -> None:
+        self.server.identity.revision = revision or self._base_revision
+        log.warning("%s firmware revision now reports %s", self.cfg.name, self.server.identity.revision)
+
+    async def _blackout_watch(self) -> None:
+        """While a blackout fault is active the PLC answers nobody: connections are dropped and the port closed."""
+        dark = False
+        while not self._stop.is_set():
+            f = self.faults.get("blackout")
+            if f and not dark:
+                dark = True
+                log.warning("%s BLACKOUT: Modbus server stopped", self.cfg.name)
+                await self.server.stop()
+            elif not f and dark:
+                dark = False
+                await self.server.start()
+                log.warning("%s blackout over: Modbus server back", self.cfg.name)
+            if self.faults.get("identity") is None and self.server.identity.revision != self._base_revision:
+                self._set_identity(self._base_revision)     # identity fault expired: report the true firmware again
+            await asyncio.sleep(0.5)
+
     def _on_request(self, peer: str, unit: int, req, response: bytes) -> None:
         if req.is_write:
             log.debug("%s %s from %s: %s addr=%d n=%d", self.cfg.name, req.name, peer, "ok" if not response[0] & 0x80 else "rejected",
@@ -73,6 +99,14 @@ class SoftPLC:
         self.remote_clients[name] = client
         failures = 0
         while not self._stop.is_set():
+            if self.faults.get("link_loss", name):
+                if self.program.remote_ok.get(name):
+                    log.warning("%s link to %s cut by fault injection", self.cfg.name, name)
+                self.program.remote_ok[name] = False
+                self.program.remote.pop(name, None)
+                await client.close()
+                await asyncio.sleep(1.0)
+                continue
             try:
                 values: Dict[str, float] = {}
                 for tag, table, address, scale in needed:
@@ -103,7 +137,10 @@ class SoftPLC:
     async def run(self) -> None:
         await self.server.start()
         log.info("%s running program '%s' (%s)", self.cfg.name, self.program.name, self.program.description)
+        if self.cfg.sim_port:
+            self._sim_httpd = start_fault_server(self.faults, self.cfg.sim_host, self.cfg.sim_port, self.cfg.name, on_identity=self._set_identity)
         pollers = [asyncio.create_task(self._poll_remote(r.name, r.host, r.port, r.unit)) for r in self.cfg.remotes]
+        pollers.append(asyncio.create_task(self._blackout_watch()))
         dt_h = self.scan_s * self.time_scale / 3600.0
         next_scan = time.monotonic()
         try:
@@ -120,6 +157,8 @@ class SoftPLC:
                 p.cancel()
             await asyncio.gather(*pollers, return_exceptions=True)
             await self.server.stop()
+            if self._sim_httpd:
+                self._sim_httpd.shutdown()
 
     def stop(self) -> None:
         self._stop.set()

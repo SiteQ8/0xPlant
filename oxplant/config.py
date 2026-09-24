@@ -32,6 +32,7 @@ class ConsoleConfig:
     port: int = 8000
     url: str = "http://127.0.0.1:8000"
     sensor_token: str = ""
+    metrics_token: str = ""           # empty = /metrics is open (bind the console to a trusted network)
     session_hours: float = 8.0
     tls_cert: str = ""
     tls_key: str = ""
@@ -106,12 +107,21 @@ class TagConfig:
 
 
 @dataclass
+class InvariantConfig:
+    name: str
+    expr: str
+    debounce: int = 3
+    desc: str = ""
+
+
+@dataclass
 class IntegrityTarget:
     asset: str
     host: str
     port: int
     unit: int
     tags: List[TagConfig]
+    invariants: List[InvariantConfig] = field(default_factory=list)
 
 
 @dataclass
@@ -127,6 +137,9 @@ class SensorConfig:
     name: str = "SENSOR-001"
     console_url: str = ""
     conduits: List[str] = field(default_factory=list)   # conduit ids this sensor runs (empty = all)
+    learning_s: float = 0.0                              # behavioural baseline learning window (0 = off)
+    record: str = ""                                     # JSONL traffic recording path (research datasets)
+    mqtt: Dict[str, Any] = field(default_factory=dict)   # optional MQTT monitor: {host, port, learning_s, envelopes}
 
 
 @dataclass
@@ -182,7 +195,7 @@ def load(path: str) -> Config:
     out = c.get("outputs", {})
     cfg.console = ConsoleConfig(
         listen=c.get("listen", "0.0.0.0"), port=int(c.get("port", 8000)),
-        url=_env(c.get("url", "http://127.0.0.1:8000")), sensor_token=_env(c.get("sensor_token", "")),
+        url=_env(c.get("url", "http://127.0.0.1:8000")), sensor_token=_env(c.get("sensor_token", "")), metrics_token=_env(c.get("metrics_token", "")),
         session_hours=float(c.get("session_hours", 8)), tls_cert=c.get("tls", {}).get("cert", ""),
         tls_key=c.get("tls", {}).get("key", ""), database=c.get("database", "data/oxplant.db"),
         users=[UserConfig(u["username"], u.get("role", "viewer"), _env(u["password_hash"])) for u in c.get("users", [])],
@@ -220,8 +233,10 @@ def load(path: str) -> Config:
         tags = [TagConfig(x["name"], x["table"], int(x["address"]), float(x.get("scale", 1)), x.get("unit", ""),
                           x.get("role", "process"), x.get("min"), x.get("max"), x.get("golden"), x.get("desc", ""))
                 for x in t.get("tags", [])]
-        cfg.integrity.targets.append(IntegrityTarget(t["asset"], t["host"], int(t.get("port", 502)), int(t.get("unit", 1)), tags))
-    cfg.sensors = [SensorConfig(s["name"], _env(s.get("console_url", cfg.console.url)), list(s.get("conduits", [])))
+        invariants = [InvariantConfig(x["name"], x["expr"], int(x.get("debounce", 3)), x.get("desc", "")) for x in t.get("invariants", [])]
+        cfg.integrity.targets.append(IntegrityTarget(t["asset"], t["host"], int(t.get("port", 502)), int(t.get("unit", 1)), tags, invariants))
+    cfg.sensors = [SensorConfig(s["name"], _env(s.get("console_url", cfg.console.url)), list(s.get("conduits", [])),
+                                float(s.get("learning_s", 0) or 0), str(s.get("record", "") or ""), dict(s.get("mqtt") or {}))
                    for s in raw.get("sensors", [])]
     validate(cfg)
     return cfg
@@ -247,6 +262,9 @@ def validate(cfg: Config) -> List[str]:
         for tag in t.tags:
             if not tag.scale:
                 raise ValueError(f"tag {tag.name} on {t.asset} has scale 0")
+        from .invariants import Invariant
+        for inv in t.invariants:
+            Invariant(inv.name, inv.expr, inv.debounce)   # raises on unsafe or invalid expressions
     for t in cfg.integrity.targets:
         if cfg.asset(t.asset) is None:
             problems.append(f"integrity target references unknown asset {t.asset}")

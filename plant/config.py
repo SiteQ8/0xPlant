@@ -26,6 +26,8 @@ class PLCConfig:
     remotes: List[RemoteConfig] = field(default_factory=list)
     source_ip: Optional[str] = None      # bind address for outgoing PLC-to-PLC polls
     seed: Optional[int] = None
+    sim_host: str = "127.0.0.1"          # testbed instrumentation: fault-injection API (None/0 = disabled)
+    sim_port: int = 0
 
 
 @dataclass
@@ -47,12 +49,22 @@ class HMIConfig:
 
 
 @dataclass
+class MQTTConfig:
+    listen: str = "0.0.0.0"
+    port: int = 1883
+    iot_source_ip: Optional[str] = None
+    interval_s: float = 2.0
+    plcs: List[HMIPLC] = field(default_factory=list)     # PLCs the IoT sensors read running bits from
+
+
+@dataclass
 class PlantConfig:
     time_scale: float = 60.0
     scan_ms: int = 250
     plcs: List[PLCConfig] = field(default_factory=list)
     hmi: HMIConfig = field(default_factory=HMIConfig)
     ews_source_ip: Optional[str] = None
+    mqtt: MQTTConfig = field(default_factory=MQTTConfig)
 
     def plc(self, name: str) -> PLCConfig:
         for p in self.plcs:
@@ -71,6 +83,7 @@ def load(path: str) -> PlantConfig:
             name=p["name"], program=p["program"], listen=p.get("listen", "0.0.0.0"),
             port=int(p.get("port", 502)), unit=int(p.get("unit", 1)),
             identity=dict(p.get("identity", {})), source_ip=p.get("source_ip"), seed=p.get("seed"),
+            sim_host=p.get("sim_host", "127.0.0.1"), sim_port=int(p.get("sim_port", 0) or 0),
             remotes=[RemoteConfig(r["name"], r["host"], int(r.get("port", 502)), int(r.get("unit", 1)))
                      for r in p.get("remotes", [])],
         ))
@@ -79,4 +92,9 @@ def load(path: str) -> PlantConfig:
                         source_ip=h.get("source_ip"), poll_ms=int(h.get("poll_ms", 500)),
                         plcs=[HMIPLC(x["name"], x["program"], x["host"], int(x.get("port", 502)), int(x.get("unit", 1)))
                               for x in h.get("plcs", [])])
+    m = raw.get("mqtt", {})
+    cfg.mqtt = MQTTConfig(listen=m.get("listen", "0.0.0.0"), port=int(m.get("port", 1883)), iot_source_ip=m.get("iot_source_ip"),
+                          interval_s=float(m.get("interval_s", 2.0)),
+                          plcs=[HMIPLC(x["name"], x.get("program", ""), x["host"], int(x.get("port", 502)), int(x.get("unit", 1)))
+                                for x in m.get("plcs", [])])
     return cfg

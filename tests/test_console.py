@@ -164,3 +164,15 @@ def test_ingest_alerts_changes_and_assets(console):
     assert c.call("POST", "/api/alerts/abc/ack", {})[0] == 400
     assert c.call("GET", "/api/events?limit=abc")[0] == 200
     assert c.call("POST", f"/api/alerts/{aid}/ack", {})[1]["ok"] is False   # already resolved: a real no-op now
+
+
+def test_metrics_and_csv_export(console):
+    c = Client(console.port)
+    status, body, headers = c.call("GET", "/metrics", raw=True)
+    assert status == 200 and headers["Content-Type"].startswith("text/plain") and b"oxplant_alerts_open{severity=\"critical\"}" in body
+    assert c.call("GET", "/api/export/events.csv")[0] == 401
+    c.login("admin")
+    status, body, headers = c.call("GET", "/api/export/events.csv", raw=True)
+    assert status == 200 and headers["Content-Type"].startswith("text/csv") and body.splitlines()[0].startswith(b"id,ts,severity")
+    assert c.call("GET", "/api/export/nope.csv")[0] == 404
+    assert any(a["action"] == "export" for a in console.store.list_audit())

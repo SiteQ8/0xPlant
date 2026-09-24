@@ -19,6 +19,8 @@ def main(argv=None) -> int:
     p_plc = sub.add_parser("plc", help="run one soft PLC", parents=[common])
     p_plc.add_argument("--name", required=True, help="PLC name from the configuration, e.g. PLC-001")
     sub.add_parser("hmi", help="run the operator HMI", parents=[common])
+    sub.add_parser("broker", help="run the IoT MQTT broker", parents=[common])
+    sub.add_parser("iot", help="run the virtual IoT sensor fleet", parents=[common])
     p_ews = sub.add_parser("ews", help="engineering workstation tool", parents=[common])
     p_ews.add_argument("--plc", required=True)
     p_ews.add_argument("--source-ip", default=None, help="bind outgoing connection to this address")
@@ -48,6 +50,24 @@ def main(argv=None) -> int:
         from .hmi import HMI
         hmi = HMI(cfg.hmi)
         return _run(hmi.run(), hmi.stop.set)
+    if args.cmd == "broker":
+        from .mqtt import MQTTBroker
+        broker = MQTTBroker(cfg.mqtt.listen, cfg.mqtt.port)
+
+        async def run_broker():
+            await broker.start()
+            stop = asyncio.Event()
+            broker.stop_event = stop
+            await stop.wait()
+            await broker.stop()
+        return _run(run_broker(), lambda: broker.stop_event.set())
+    if args.cmd == "iot":
+        from .iot import IoTFleet
+        import os
+        broker_host = os.environ.get("OXPLANT_BROKER_HOST") or (cfg.mqtt.listen if cfg.mqtt.listen != "0.0.0.0" else "127.0.0.1")
+        fleet = IoTFleet(broker_host, cfg.mqtt.port,
+                         {p.name: (p.host, p.port) for p in cfg.mqtt.plcs}, cfg.mqtt.interval_s, cfg.mqtt.iot_source_ip)
+        return _run(fleet.run(), fleet.stop.set)
     if args.cmd == "ews":
         from .ews import run as ews_run
         return asyncio.run(ews_run(cfg, args.plc, args.action, args.args, args.source_ip))

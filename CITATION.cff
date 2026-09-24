@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+title: "0xPlant: an open ICS/OT security testbed with a simulated water treatment plant"
+message: "If you use 0xPlant in research, please cite it as below."
+type: software
+authors:
+  - family-names: AlEnezi
+    given-names: Ali
+repository-code: "https://github.com/SiteQ8/0xPlant"
+url: "https://siteq8.github.io/0xPlant"
+license: MIT
+version: 2.1.0
+date-released: 2026-09-24
+keywords:
+  - ICS security
+  - OT security
+  - Modbus
+  - IEC 62443
+  - testbed
+  - anomaly detection
+  - water treatment

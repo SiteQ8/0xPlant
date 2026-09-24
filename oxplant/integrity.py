@@ -14,6 +14,7 @@ from modbuslite import ModbusClient
 
 from .config import IntegrityConfig, IntegrityTarget, TagConfig
 from .events import Event
+from .invariants import Invariant
 
 log = logging.getLogger("oxplant.integrity")
 
@@ -40,6 +41,10 @@ class TargetMonitor:
         self.last_identity_check = 0.0
         self.identity: Optional[dict] = None
         self.plan = self._plan()
+        self.invariants = [Invariant(i.name, i.expr, i.debounce, i.desc) for i in target.invariants]
+        self.previous: Dict[str, float] = {}
+        self.prev_ts = 0.0
+        self.inv_status: Dict[str, str] = {i.name: "pending" for i in self.invariants}
 
     def _plan(self):
         plan = []
@@ -75,6 +80,7 @@ class TargetMonitor:
             for i, v in enumerate(vals):
                 raw[table][start + i] = v
         now = time.time()
+        previous, prev_ts = dict(self.values), self.prev_ts
         for tag in self.t.tags:
             if tag.address not in raw[tag.table]:
                 continue
@@ -92,6 +98,9 @@ class TargetMonitor:
                 self._interlock(tag, value)
             else:
                 self.status[tag.name] = "ok"
+        self._invariants(previous, now - prev_ts if prev_ts else 0.0)
+        self.previous, self.prev_ts = previous, self.prev_ts
+        self.prev_ts = now
         if not self.online:
             self.online = True
             if self.failures >= OFFLINE_DEBOUNCE:
@@ -106,7 +115,23 @@ class TargetMonitor:
             "online": True, "ts": now, "host": self.t.host, "identity": self.identity,
             "tags": {tag.name: {"value": self.values.get(tag.name), "unit": tag.unit, "role": tag.role, "status": self.status.get(tag.name, "ok"),
                                 "min": tag.min, "max": tag.max, "golden": self.golden(tag), "desc": tag.desc} for tag in self.t.tags},
+            "invariants": {i.name: {"status": self.inv_status.get(i.name, "pending"), "expr": i.expr, "desc": i.desc} for i in self.invariants},
         }
+
+    def _invariants(self, previous: Dict[str, float], dt: float) -> None:
+        for inv in self.invariants:
+            holds = inv.evaluate(self.values, previous, dt)
+            change = inv.update(holds)
+            self.inv_status[inv.name] = "pending" if holds is None else ("violated" if inv.alerting else "ok")
+            if change == "violated":
+                self.m.emit(Event.from_rule("OXP-018", f"{self.t.asset} invariant '{inv.name}' violated: reported values are physically inconsistent",
+                                            asset=self.t.asset, dest_ip=self.t.host,
+                                            detail={"invariant": inv.name, "expr": inv.expr, "desc": inv.desc,
+                                                    "values": {k: self.values[k] for k in self.values if k in inv.expr}},
+                                            alert_key=f"OXP-018:{self.t.asset}:{inv.name}"))
+            elif change == "restored":
+                self.m.emit(Event(f"{self.t.asset} invariant '{inv.name}' holds again", "info", "PROCESS", asset=self.t.asset,
+                                  detail={"invariant": inv.name}, resolve_key=f"OXP-018:{self.t.asset}:{inv.name}"))
 
     def _envelope(self, tag: TagConfig, value: float) -> None:
         low = tag.min is not None and value < tag.min

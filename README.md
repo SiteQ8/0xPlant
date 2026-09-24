@@ -105,6 +105,7 @@ python -m oxplant hash-password      # paste the hash into config/oxplant.*.yaml
 | **PLC-001** Intake | River pump P-101, intake valve MOV-101, intake tank T-101 | Level control with start/stop setpoints, turbidity monitoring | LAHH tank high-high stops the pump (latched) |
 | **PLC-002** Treatment | Transfer pump P-202, sand filter F-201, chlorine dosing pump P-201, contact tank T-201 | PI chlorine residual control, automatic filter backwash on differential pressure | AAHH chlorine high-high stops dosing (latched) |
 | **PLC-003** Distribution | Clearwell T-301, high-lift pumps P-301/P-302, network pressure PT-301 | Pressure control with lead/lag pumps against a diurnal demand curve | LALL clearwell low-low and PAHH pressure high-high stop the pumps |
+| **IoT layer** | MQTT broker (Level 2) and a fleet of vibration, bearing-temperature, ambient and gas sensors that follow the real pump states | Cleartext MQTT, as commonly found on plant floors | — |
 
 Simulated time runs 60× faster than real time by default (`time_scale` in `config/plant.*.yaml`), so tanks fill and the demand curve moves within minutes.
 
@@ -202,6 +203,29 @@ python -m oxplant hash-password
 
 ---
 
+## Research testbed
+
+0xPlant is built to be used as a reproducible ICS security research platform. Everything below runs in the local lab with no extra dependencies.
+
+| Capability | Where | What it gives you |
+|---|---|---|
+| **Fault injection** | `plant/faults.py`, HTTP API on each PLC (`sim_port`) | Stuck/offset/noisy sensors, actuator failures, PLC link loss, communication blackouts, firmware identity changes: `curl -X POST 127.0.0.1:9001/fault -d '{"type":"sensor_stuck","tag":"LT-101","duration_s":60}'` |
+| **Physics invariants** | `oxplant/invariants.py`, `integrity.targets[].invariants` | Safe expression language over process tags (mass balances, actuator/flow consistency). Reported values that contradict the physics raise OXP-018: false data injection and frozen sensors are caught even when every value is inside its envelope |
+| **Behavioural baselining** | `oxplant/baseline.py`, `sensors[].learning_s` | Conduits learn each source's request patterns and rate, then report deviations (OXP-017) on top of the allowlist |
+| **Labelled traffic dataset** | `sensors[].record` → JSONL | Every request with its policy decision, rule, exception and latency ([schema](docs/research/dataset.md)) |
+| **IoT layer** | `plant/mqtt.py`, `plant/iot.py`, `oxplant/mqttmon.py` | Dependency-free MQTT broker, condition-monitoring sensor fleet, and a monitor that baselines topics, publishers and payload ranges (OXP-019/020) |
+| **Metrics and exports** | `/metrics` (Prometheus), `/api/export/<kind>.csv` | Time series of process values, invariant state, alerts and conduit counters; tabular exports of everything the console stores |
+| **Experiment harness** | `research/run_experiments.py` | 13 reproducible scenarios measuring detection latency per rule, with JSON and Markdown reports ([methodology](docs/research/methodology.md)) |
+
+```bash
+python research/run_experiments.py --list          # scenarios
+python research/run_experiments.py --runs 3        # starts the lab, runs every scenario 3 times, writes research/results/
+```
+
+Documentation: [architecture](docs/research/architecture.md) · [threat model](docs/research/threat-model.md) · [methodology](docs/research/methodology.md) · [dataset](docs/research/dataset.md). Cite with [CITATION.cff](CITATION.cff).
+
+---
+
 ## Detection rules
 
 | Rule | Title | Severity | Reference |
@@ -222,6 +246,10 @@ python -m oxplant hash-password
 | OXP-014 | Console authentication failure | warning | IEC 62443-3-3 SR 1.11 |
 | OXP-015 | New conversation observed | info | NIST SP 800-82 |
 | OXP-016 | Upstream device unreachable | warning | IEC 62443-3-3 SR 7.1 |
+| OXP-017 | Behavioural anomaly on conduit | warning | NIST SP 800-82, ATT&CK ICS T0846 |
+| OXP-018 | Process invariant violated | critical | IEC 61511, ATT&CK ICS T0832/T0856 |
+| OXP-019 | Unexpected MQTT publisher or topic | warning | IEC 62443-3-3 SR 1.2 |
+| OXP-020 | IoT telemetry anomaly | warning | IEC 62443-3-3 SR 3.5 |
 
 ---
 
@@ -255,8 +283,9 @@ All of these run against your own lab and are exercised by the test-suite.
 
 ```
 modbuslite/   dependency-free Modbus/TCP codec, server and client (shared by plant and 0xPlant)
-plant/        the water works: PLC programs & physics, soft-PLC runtime, HMI, EWS tool
-oxplant/      the security tool: policy, conduit, discovery, integrity, store, console, outputs, auth
+plant/        the water works: PLC programs & physics, soft-PLC runtime, HMI, EWS tool, fault injection, MQTT broker, IoT fleet
+oxplant/      the security tool: policy, conduit, baseline, discovery, integrity, invariants, mqtt monitor, store, console, outputs, auth
+research/     experiment harness and results
 config/       local and Docker configurations
 scripts/      run_local.py
 tests/        pytest suite (includes pymodbus interoperability)
@@ -275,7 +304,6 @@ pytest
 ## Roadmap
 
 * Additional protocol conduits: S7comm, OPC UA, EtherNet/IP, DNP3
-* MQTT/IoT sensors with TLS enforcement checks
 * Passive (SPAN/TAP) sensor mode
 * PLC program (logic) backup and golden image comparison
 

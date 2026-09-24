@@ -66,6 +66,18 @@ RULES: Dict[str, Rule] = {r.id: r for r in [
     Rule("OXP-016", "Upstream device unreachable", WARNING, "AVAILABILITY",
          "The conduit could not reach the protected asset behind it.",
          "IEC 62443-3-3 SR 7.1"),
+    Rule("OXP-017", "Behavioural anomaly on conduit", WARNING, "SECURITY",
+         "A permitted source deviated from its learned traffic profile: a new function/register pattern or an unusual request rate.",
+         "NIST SP 800-82 6.2.2, MITRE ATT&CK for ICS T0846"),
+    Rule("OXP-018", "Process invariant violated", CRITICAL, "PROCESS",
+         "Reported process values contradict the physics of the plant (for example a mass balance): possible false data injection or sensor failure.",
+         "IEC 61511, MITRE ATT&CK for ICS T0832/T0856"),
+    Rule("OXP-019", "Unexpected MQTT publisher or topic", WARNING, "NETWORK",
+         "A topic or publisher that was not present during the learning window appeared on the IoT broker.",
+         "IEC 62443-3-3 SR 1.2"),
+    Rule("OXP-020", "IoT telemetry anomaly", WARNING, "PROCESS",
+         "An IoT payload could not be parsed or carries a value outside its expected range.",
+         "IEC 62443-3-3 SR 3.5"),
 ]}
 
 

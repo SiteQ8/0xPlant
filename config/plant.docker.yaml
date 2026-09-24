@@ -9,6 +9,8 @@ plcs:
     port: 502
     unit: 1
     seed: 11
+    sim_host: 0.0.0.0    # fault-injection API on the L1 network only (container has no other interface)
+    sim_port: 9000
     identity: {model_name: "vPLC-1200 Intake", application_name: "INTAKE_v1.3", revision: "1.3.2"}
     remotes:
       - {name: PLC-002, host: 10.10.1.11, port: 502}
@@ -18,6 +20,8 @@ plcs:
     port: 502
     unit: 1
     seed: 22
+    sim_host: 0.0.0.0
+    sim_port: 9000
     identity: {model_name: "vPLC-1200 Treatment", application_name: "TREAT_v2.0", revision: "1.3.2"}
     remotes:
       - {name: PLC-001, host: 10.10.1.10, port: 502}
@@ -28,6 +32,8 @@ plcs:
     port: 502
     unit: 1
     seed: 33
+    sim_host: 0.0.0.0
+    sim_port: 9000
     identity: {model_name: "vPLC-1200 Distribution", application_name: "DIST_v1.1", revision: "1.2.9"}
     remotes:
       - {name: PLC-002, host: 10.10.1.11, port: 502}
@@ -41,3 +47,13 @@ hmi:
     - {name: PLC-001, program: intake,       host: 10.10.3.10, port: 502}
     - {name: PLC-002, program: treatment,    host: 10.10.3.11, port: 502}
     - {name: PLC-003, program: distribution, host: 10.10.3.12, port: 502}
+
+# IoT layer: MQTT broker container (10.10.3.50) and sensor fleet container on Level 1 (10.10.1.60)
+mqtt:
+  listen: 0.0.0.0
+  port: 1883
+  interval_s: 2
+  plcs:
+    - {name: PLC-001, host: 10.10.1.10, port: 502}
+    - {name: PLC-002, host: 10.10.1.11, port: 502}
+    - {name: PLC-003, host: 10.10.1.12, port: 502}

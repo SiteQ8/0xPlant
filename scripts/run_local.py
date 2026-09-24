@@ -41,6 +41,8 @@ def main() -> int:
     time.sleep(1.0)
     start("console", [py, "-m", "oxplant", "-c", args.oxplant, "console"])
     time.sleep(1.0)
+    start("broker", [py, "-m", "plant", "-c", args.plant, "broker"])
+    start("iot", [py, "-m", "plant", "-c", args.plant, "iot"])
     start("sensor", [py, "-m", "oxplant", "-c", args.oxplant, "sensor", "--name", "SENSOR-001"])
     time.sleep(1.0)
     if not args.no_hmi:

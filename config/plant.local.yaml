@@ -16,6 +16,7 @@ plcs:
     port: 5020
     unit: 1
     seed: 11
+    sim_port: 9001       # testbed fault-injection API (research instrumentation, loopback only)
     identity: {model_name: "vPLC-1200 Intake", application_name: "INTAKE_v1.3", revision: "1.3.2"}
     remotes:
       - {name: PLC-002, host: 127.0.1.11, port: 5020}
@@ -25,6 +26,7 @@ plcs:
     port: 5020
     unit: 1
     seed: 22
+    sim_port: 9002
     identity: {model_name: "vPLC-1200 Treatment", application_name: "TREAT_v2.0", revision: "1.3.2"}
     remotes:
       - {name: PLC-001, host: 127.0.1.10, port: 5020}
@@ -35,6 +37,7 @@ plcs:
     port: 5020
     unit: 1
     seed: 33
+    sim_port: 9003
     identity: {model_name: "vPLC-1200 Distribution", application_name: "DIST_v1.1", revision: "1.2.9"}
     remotes:
       - {name: PLC-002, host: 127.0.1.11, port: 5020}
@@ -52,3 +55,14 @@ hmi:
 
 # Engineering workstation source address (Level 3).
 ews_source_ip: 127.0.4.40
+
+# IoT layer: cleartext MQTT broker (Level 2) and a fleet of condition-monitoring sensors (Level 0/1)
+mqtt:
+  listen: 127.0.3.50
+  port: 1883
+  iot_source_ip: 127.0.1.60
+  interval_s: 2
+  plcs:
+    - {name: PLC-001, host: 127.0.1.10, port: 5020}
+    - {name: PLC-002, host: 127.0.1.11, port: 5020}
+    - {name: PLC-003, host: 127.0.1.12, port: 5020}

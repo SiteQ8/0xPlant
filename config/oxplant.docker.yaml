@@ -34,6 +34,8 @@ assets:
   - {id: HMI-001, name: "Operator Station 1",    type: HMI, ip: 10.10.3.30, zone: L2, ports: [8080], protocols: [Modbus/TCP, HTTP]}
   - {id: OXP-CONSOLE, name: "0xPlant Console",   type: Server, ip: 10.10.3.100, zone: L2, ports: [8000], protocols: [Modbus/TCP, HTTP]}
   - {id: OXP-CONSOLE-L3, name: "0xPlant Console (L3 leg)", type: Server, ip: 10.10.4.100, zone: L3, ports: [8000], protocols: [HTTP], description: "Second interface of the console container: operator UI on Level 3"}
+  - {id: IOT-BROKER, name: "IoT MQTT Broker",      type: Broker, ip: 10.10.3.50, zone: L2, ports: [1883], protocols: [MQTT], criticality: medium}
+  - {id: IOT-FLEET,  name: "IoT sensor fleet (VIB/TT/ENV)", type: "IoT Sensor", ip: 10.10.1.60, zone: L1, protocols: [MQTT, Modbus/TCP]}
   - {id: EWS-001, name: "Engineering Workstation", type: EWS, ip: 10.10.3.40, zone: L3, protocols: [Modbus/TCP], description: "Dual-homed 10.10.4.40 (L3) / 10.10.3.40 (L2 leg seen by the conduits)"}
 
 # IEC 62443 conduits: the only path from Level 2/3 into Level 1.
@@ -70,9 +72,9 @@ conduits:
       - {asset: OXP-CONSOLE, allow: [read, identification]}
 
 sensors:
-  - {name: SENSOR-001, console_url: http://10.10.3.100:8000, conduits: [CONDUIT-001]}
-  - {name: SENSOR-002, console_url: http://10.10.3.100:8000, conduits: [CONDUIT-002]}
-  - {name: SENSOR-003, console_url: http://10.10.3.100:8000, conduits: [CONDUIT-003]}
+  - {name: SENSOR-001, console_url: http://10.10.3.100:8000, conduits: [CONDUIT-001], learning_s: 120, record: data/traffic-sensor-001.jsonl, mqtt: {host: 10.10.3.50, port: 1883, learning_s: 120, asset: IOT-BROKER}}
+  - {name: SENSOR-002, console_url: http://10.10.3.100:8000, conduits: [CONDUIT-002], learning_s: 120, record: data/traffic-sensor-002.jsonl}
+  - {name: SENSOR-003, console_url: http://10.10.3.100:8000, conduits: [CONDUIT-003], learning_s: 120, record: data/traffic-sensor-003.jsonl}
 
 discovery:
   - {runner: SENSOR-001, zone: L1, targets: ["10.10.1.0/24"], ports: [502, 102, 4840, 44818, 20000, 1883, 47808, 2404, 23, 21, 80], interval_s: 120}
@@ -92,6 +94,7 @@ integrity:
         - {name: LT-101, table: input, address: 0, scale: 100, unit: "%",   role: process, min: 8,  max: 92, desc: "Intake tank level"}
         - {name: FT-101, table: input, address: 1, scale: 10,  unit: m3/h,  role: process, min: 0,  max: 160, desc: "Raw water flow"}
         - {name: AT-101, table: input, address: 2, scale: 10,  unit: NTU,   role: process, min: 0,  max: 25, desc: "Turbidity"}
+        - {name: SC-101, table: input, address: 3, scale: 100, unit: "%",   role: status, desc: "P-101 speed feedback"}
         - {name: LEVEL_START_SP, table: holding, address: 100, scale: 100, unit: "%", role: setpoint}
         - {name: LEVEL_STOP_SP,  table: holding, address: 101, scale: 100, unit: "%", role: setpoint}
         - {name: PUMP_SPEED_SP,  table: holding, address: 102, scale: 100, unit: "%", role: setpoint}
@@ -101,6 +104,17 @@ integrity:
         - {name: LALL_LIMIT,     table: holding, address: 203, scale: 100, unit: "%", role: config, golden: 10}
         - {name: INTERLOCK_WORD, table: holding, address: 2,   scale: 1, role: interlock}
         - {name: AUTO_ACTIVE,    table: discrete, address: 5,  role: status}
+        - {name: FT-201-R, table: input, address: 6, scale: 10, unit: m3/h, role: status, desc: "Treatment draw as seen by PLC-001"}
+      invariants:
+        # Tank T-101 is 500 m3 and the plant runs at 60x: level%/s must match (inflow - draw) m3/h / 300.
+        - name: intake-mass-balance
+          desc: "T-101 level change must match raw water inflow minus treatment draw"
+          expr: "not (1 < v('LT-101') < 99) or abs((v('LT-101') - prev('LT-101')) / dt - (v('FT-101') - v('FT-201-R')) / 300) < 0.08"
+          debounce: 3
+        - name: pump-implies-flow
+          desc: "A running intake pump with an open valve must show raw water flow"
+          expr: "v('SC-101') < 20 or v('FT-101') > 10"
+          debounce: 3
     - asset: PLC-002
       host: 10.10.3.11
       port: 502
@@ -122,6 +136,17 @@ integrity:
         - {name: CLEARWELL_RESTART, table: holding, address: 206, scale: 100, unit: "%", role: config, golden: 70}
         - {name: INTERLOCK_WORD, table: holding, address: 2, scale: 1, role: interlock}
         - {name: AUTO_ACTIVE,    table: discrete, address: 5, role: status}
+        - {name: SC-201, table: input, address: 5, scale: 100, unit: "%", role: status, desc: "Dosing stroke feedback"}
+        - {name: TRANSFER_RUNNING, table: discrete, address: 7, role: status}
+      invariants:
+        - name: transfer-implies-flow
+          desc: "A running transfer pump must produce treated flow"
+          expr: "not v('TRANSFER_RUNNING') or v('FT-201') > 20"
+          debounce: 4
+        - name: dosing-keeps-residual
+          desc: "With dosing active and flow present the residual cannot collapse to zero"
+          expr: "v('SC-201') < 5 or v('FT-201') < 20 or v('AT-201') > 0.15"
+          debounce: 5
     - asset: PLC-003
       host: 10.10.3.12
       port: 502
@@ -137,3 +162,10 @@ integrity:
         - {name: MAX_SPEED,  table: holding, address: 203, scale: 100, unit: "%", role: config, golden: 100}
         - {name: INTERLOCK_WORD, table: holding, address: 2, scale: 1, role: interlock}
         - {name: AUTO_ACTIVE,    table: discrete, address: 5, role: status}
+        - {name: FT-201-R, table: input, address: 6, scale: 10, unit: m3/h, role: status, desc: "Treated inflow as seen by PLC-003"}
+      invariants:
+        # Clearwell T-301 is 800 m3: level%/s must match (inflow - distribution flow) m3/h / 480.
+        - name: clearwell-mass-balance
+          desc: "T-301 level change must match treated inflow minus distribution flow"
+          expr: "not (1 < v('LT-301') < 99) or abs((v('LT-301') - prev('LT-301')) / dt - (v('FT-201-R') - v('FT-301')) / 480) < 0.08"
+          debounce: 3

@@ -96,6 +96,25 @@ services:
     volumes: [oxplant-data:/app/data]
     restart: unless-stopped
 
+  # ---------------- IoT layer ----------------
+  broker:
+    <<: *image
+    container_name: iot-broker
+    command: ["python", "-m", "plant", "-c", "config/plant.docker.yaml", "broker"]
+    networks:
+      l1_control: {ipv4_address: 10.10.1.50}
+      l2_supervisory: {ipv4_address: 10.10.3.50}
+    restart: unless-stopped
+  iot:
+    <<: *image
+    container_name: iot-fleet
+    command: ["python", "-m", "plant", "-c", "config/plant.docker.yaml", "iot"]
+    environment:
+      OXPLANT_BROKER_HOST: 10.10.1.50
+    networks: {l1_control: {ipv4_address: 10.10.1.60}}
+    depends_on: [broker, plc-001]
+    restart: unless-stopped
+
   # ---------------- Level 2: operator HMI ----------------
   hmi:
     <<: *image

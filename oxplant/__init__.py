@@ -7,4 +7,4 @@ Components:
   console    web console, REST API, alerting, change tracking, audit log
   sensor     runs conduits and discovery close to the process and reports to the console
 """
-__version__ = "2.0.0"
+__version__ = "2.1.0"

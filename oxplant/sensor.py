@@ -6,6 +6,7 @@ import logging
 import time
 from typing import List
 
+from .baseline import Baseline, Recorder
 from .conduit import Conduit
 from .config import Config
 from .discovery import Discovery
@@ -25,9 +26,15 @@ class Sensor:
         self.bus.subscribe(lambda e: log.log(logging.WARNING if e.severity != "info" else logging.INFO,
                                              "[%s] %s %s", e.severity.upper(), e.rule or "-", e.title))
         wanted = [c for c in cfg.conduits if not scfg.conduits or c.id in scfg.conduits]
+        self.recorder = Recorder(scfg.record) if scfg.record else None
         self.conduits: List[Conduit] = [
-            Conduit(c.policy, (c.listen_host, c.listen_port), (c.upstream_host, c.upstream_port), self.bus, name)
+            Conduit(c.policy, (c.listen_host, c.listen_port), (c.upstream_host, c.upstream_port), self.bus, name,
+                    baseline=Baseline(scfg.learning_s) if scfg.learning_s else None, recorder=self.recorder)
             for c in wanted]
+        self.mqtt_monitor = None
+        if scfg.mqtt:
+            from .mqttmon import MQTTMonitor
+            self.mqtt_monitor = MQTTMonitor(scfg.mqtt, self.bus, name)
         self.discovery = Discovery(cfg.discovery, cfg.assets, self.bus.publish, self.forwarder.asset,
                                    runner=name, zone_for_ip=cfg.zone_for_ip)
         self.stop = asyncio.Event()
@@ -37,6 +44,9 @@ class Sensor:
         while not self.stop.is_set():
             for c in self.conduits:
                 for rec in c.flow_records():
+                    self.forwarder.flow(rec)
+            if self.mqtt_monitor:
+                for rec in self.mqtt_monitor.flow_records():
                     self.forwarder.flow(rec)
             try:
                 await asyncio.wait_for(self.stop.wait(), timeout=5.0)
@@ -50,6 +60,8 @@ class Sensor:
         self.bus.publish(Event(f"Sensor {self.name} started with {len(self.conduits)} conduit(s)", "info", "SYSTEM",
                                sensor=self.name, detail={"conduits": [c.id for c in self.conduits]}))
         tasks = [asyncio.create_task(self._report_flows()), asyncio.create_task(self.discovery.run(self.stop))]
+        if self.mqtt_monitor:
+            tasks.append(asyncio.create_task(self.mqtt_monitor.run(self.stop)))
         try:
             await self.stop.wait()
         finally:
@@ -57,4 +69,6 @@ class Sensor:
                 t.cancel()
             for c in self.conduits:
                 await c.stop()
+            if self.recorder:
+                self.recorder.close()
             self.forwarder.stop()

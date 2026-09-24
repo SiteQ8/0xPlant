@@ -16,6 +16,7 @@ from typing import Dict, Optional, Set, Tuple
 from modbuslite import codec
 from modbuslite.codec import DecodeError, Request
 
+from .baseline import Baseline, Recorder
 from .events import Event, EventBus
 from .policy import ConduitPolicy
 
@@ -46,7 +47,8 @@ class FlowStats:
 
 class Conduit:
     def __init__(self, policy: ConduitPolicy, listen: Tuple[str, int], upstream: Tuple[str, int],
-                 bus: EventBus, sensor: str = "", upstream_timeout: float = 2.0, idle_timeout: float = 120.0):
+                 bus: EventBus, sensor: str = "", upstream_timeout: float = 2.0, idle_timeout: float = 120.0,
+                 baseline: Optional[Baseline] = None, recorder: Optional[Recorder] = None):
         self.policy = policy
         self.listen = listen
         self.upstream = upstream
@@ -54,6 +56,8 @@ class Conduit:
         self.sensor = sensor
         self.upstream_timeout = upstream_timeout
         self.idle_timeout = idle_timeout
+        self.baseline = baseline
+        self.recorder = recorder
         self._suppressed: Dict[Tuple[str, str], int] = {}
         self._server: Optional[asyncio.AbstractServer] = None
         self.flows: Dict[str, FlowStats] = {}
@@ -168,9 +172,11 @@ class Conduit:
                     continue
                 flow.functions[req.function] = flow.functions.get(req.function, 0) + 1
                 decision = self.policy.evaluate(ip, req)
+                t_req = time.time()
                 if not decision.allowed:
                     flow.denied += 1
                     self._deny(ip, req, decision)
+                    self._record(ip, source_asset, req, False, decision.rule, decision.exception_code, 0.0)
                     writer.write(codec.build_mbap(transaction, unit, codec.build_exception(req.function, decision.exception_code)))
                     try:
                         await writer.drain()
@@ -206,6 +212,16 @@ class Conduit:
                                                            detail={"error": str(exc)}, alert_key=f"OXP-016:{self.policy.asset}"))
                 if response is None:
                     response = codec.build_exception(req.function, codec.EXC_GATEWAY_TARGET)
+                exc_code = response[1] if (response and response[0] & 0x80 and len(response) > 1) else 0
+                self._record(ip, source_asset, req, True, None, exc_code, (time.time() - t_req) * 1000.0)
+                if self.baseline:
+                    anomaly = self.baseline.observe(ip, req.function, req.address, req.quantity)
+                    if anomaly:
+                        what = (f"new pattern {req.name} @{req.address} x{req.quantity}" if anomaly["kind"] == "new_pattern"
+                                else f"{anomaly['rate']} req/s (learned max {anomaly['learned_max']})")
+                        self._emit(Event.from_rule("OXP-017", f"{source_asset or ip} deviated from its baseline on {self.policy.asset}: {what}",
+                                                   source_ip=ip, detail=dict(anomaly, function_name=req.name),
+                                                   alert_key=f"OXP-017:{self.policy.asset}:{ip}:{anomaly['kind']}"))
                 if req.is_write and not (response[0] & 0x80):
                     self._emit(Event(f"{decision.source_asset or ip} wrote {req.table}[{req.address}"
                                      f"{'..' + str(req.end_address) if req.quantity > 1 else ''}] on {self.policy.asset}",
@@ -222,5 +238,19 @@ class Conduit:
             if up_writer:
                 up_writer.close()
 
+    def _record(self, ip: str, source_asset: str, req: Request, allowed: bool, rule: Optional[str], exc: int, latency_ms: float) -> None:
+        if not self.recorder:
+            return
+        self.recorder.write({"ts": round(time.time(), 6), "sensor": self.sensor, "conduit": self.id, "asset": self.policy.asset,
+                             "src": ip, "src_asset": source_asset, "fc": req.function, "fn": req.name, "table": req.table,
+                             "address": req.address, "quantity": req.quantity, "values": req.values[:16] if req.is_write else None,
+                             "allowed": allowed, "rule": rule, "exception": exc, "latency_ms": round(latency_ms, 3),
+                             "baseline": self.baseline.state if self.baseline else "off"})
+
     def flow_records(self) -> list:
-        return [f.to_dict() for f in self.flows.values()]
+        out = []
+        for f in self.flows.values():
+            d = f.to_dict()
+            d["baseline"] = self.baseline.state if self.baseline else "off"
+            out.append(d)
+        return out

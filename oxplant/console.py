@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import asyncio
+import csv
 import hmac
+import io
 import json
 import logging
 import os
@@ -176,6 +178,52 @@ class Console:
             "zones": [{"id": z.id, "name": z.name, "level": z.level, "subnets": z.subnets, "color": z.color} for z in self.cfg.zones],
         }
 
+    def metrics(self) -> str:
+        """Prometheus text exposition of the console's state (for time-series research and dashboards)."""
+        lines = ["# HELP oxplant_info Build information", "# TYPE oxplant_info gauge", f'oxplant_info{{version="{__version__}",site="{self.cfg.site}"}} 1']
+        assets = self.store.list_assets()
+        lines += ["# TYPE oxplant_assets gauge"]
+        for st in ("online", "offline", "unknown"):
+            lines.append(f'oxplant_assets{{status="{st}"}} {sum(1 for a in assets if a["status"] == st)}')
+        lines.append(f'oxplant_assets_unapproved {sum(1 for a in assets if not a["approved"])}')
+        counts = self.store.alert_counts()
+        lines += ["# TYPE oxplant_alerts_open gauge"] + [f'oxplant_alerts_open{{severity="{s}"}} {counts[s]}' for s in ("critical", "warning", "info")]
+        ev = self.store.event_counts(0)
+        lines += ["# TYPE oxplant_events_total counter"] + [f'oxplant_events_total{{severity="{s}"}} {ev.get(s, 0)}' for s in ("critical", "warning", "info")]
+        lines += ["# TYPE oxplant_conduit_requests_total counter", "# TYPE oxplant_conduit_denied_total counter"]
+        for f in self.store.list_flows():
+            lbl = f'conduit="{f["conduit"]}",source="{f["source_asset"] or f["source_ip"]}",asset="{f["asset"]}"'
+            lines.append(f"oxplant_conduit_requests_total{{{lbl}}} {f['requests']}")
+            lines.append(f"oxplant_conduit_denied_total{{{lbl}}} {f['denied']}")
+        lines += ["# TYPE oxplant_process_value gauge", "# TYPE oxplant_process_ok gauge", "# TYPE oxplant_invariant_ok gauge", "# TYPE oxplant_asset_online gauge"]
+        for asset, v in list(self.integrity.live.items()):
+            lines.append(f'oxplant_asset_online{{asset="{asset}"}} {1 if v.get("online") else 0}')
+            for tag, t in (v.get("tags") or {}).items():
+                if t.get("value") is not None:
+                    lines.append(f'oxplant_process_value{{asset="{asset}",tag="{tag}",role="{t["role"]}"}} {t["value"]}')
+                    lines.append(f'oxplant_process_ok{{asset="{asset}",tag="{tag}"}} {1 if t["status"] == "ok" else 0}')
+            for name, inv in (v.get("invariants") or {}).items():
+                lines.append(f'oxplant_invariant_ok{{asset="{asset}",invariant="{name}"}} {1 if inv["status"] != "violated" else 0}')
+        lines += ["# TYPE oxplant_sensor_last_seen_seconds gauge"] + [f'oxplant_sensor_last_seen_seconds{{sensor="{s["name"]}"}} {s["last_seen"]}' for s in self.store.list_sensors()]
+        lines.append(f"oxplant_ingested_events_total {self.ingested}")
+        return "\n".join(lines) + "\n"
+
+    def export_csv(self, kind: str) -> Optional[str]:
+        rows = {"events": lambda: self.store.list_events(2000), "alerts": lambda: self.store.list_alerts("", 2000),
+                "changes": lambda: self.store.list_changes(2000), "assets": self.store.list_assets, "flows": self.store.list_flows,
+                "audit": lambda: self.store.list_audit(2000)}.get(kind)
+        if not rows:
+            return None
+        data = rows()
+        buf = io.StringIO()
+        if data:
+            cols = list(data[0].keys())
+            w = csv.DictWriter(buf, fieldnames=cols)
+            w.writeheader()
+            for r in data:
+                w.writerow({k: (json.dumps(v) if isinstance(v, (dict, list)) else v) for k, v in r.items()})
+        return buf.getvalue()
+
     def policy(self) -> list:
         return [dict(c.policy.describe(), listen=f"{c.listen_host}:{c.listen_port}", upstream=f"{c.upstream_host}:{c.upstream_port}")
                 for c in self.cfg.conduits]
@@ -312,6 +360,11 @@ def make_handler(console: Console):
                     return self._send(HTTPStatus.OK, fh.read(), ctype)
             if path == "/api/health":
                 return self._json(HTTPStatus.OK, {"ok": True, "version": __version__, "uptime": time.time() - console.started})
+            if path == "/metrics":
+                token = cfg.console.metrics_token
+                if token and not hmac.compare_digest(self.headers.get("Authorization", ""), f"Bearer {token}"):
+                    return self._json(HTTPStatus.UNAUTHORIZED, {"error": "bad metrics token"})
+                return self._send(HTTPStatus.OK, console.metrics().encode(), "text/plain; version=0.0.4; charset=utf-8")
             if path == "/api/me":
                 s = self._session()
                 return self._json(HTTPStatus.OK, {"authenticated": bool(s), "username": s.username if s else None,
@@ -321,6 +374,12 @@ def make_handler(console: Console):
             s = self._require("view")
             if not s:
                 return None
+            if path.startswith("/api/export/") and path.endswith(".csv"):
+                body = console.export_csv(path[len("/api/export/"):-4])
+                if body is None:
+                    return self._json(HTTPStatus.NOT_FOUND, {"error": "unknown export"})
+                store.audit(s.username, "export", path, "ok", self._client_ip())
+                return self._send(HTTPStatus.OK, body.encode(), "text/csv; charset=utf-8", {"Content-Disposition": f"attachment; filename={path.rsplit('/', 1)[-1]}"})
             limit = _qint(q, "limit", 200, 1, 2000)
             since = float(_qint(q, "since", 0, 0, 4102444800))
             routes = {
