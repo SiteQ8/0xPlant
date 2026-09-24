@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0xPlant — ICS/OT Security Console</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%2310B981'/><text x='8' y='12' text-anchor='middle' font-size='7' fill='%23000' font-weight='bold'>0x</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root { --sidebar:#0F172A; --sidebar-t:#94A3B8; --sidebar-h:#E2E8F0; --bg:#F8FAFC; --white:#FFF; --border:#E2E8F0; --text:#0F172A; --text2:#475569; --text3:#94A3B8;
+  --green:#10B981; --green2:#059669; --green-bg:#ECFDF5; --green-border:#A7F3D0; --red:#EF4444; --red-bg:#FEF2F2; --red-border:#FECACA; --amber:#F59E0B; --amber-bg:#FFFBEB; --amber-border:#FDE68A;
+  --blue:#3B82F6; --blue-bg:#EFF6FF; --blue-border:#BFDBFE; --purple:#8B5CF6; --mono:'Fira Code',ui-monospace,monospace; --sans:'Source Sans 3',system-ui,sans-serif; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); display: flex; min-height: 100vh; font-size: 14px; }
+.login-overlay { position: fixed; inset: 0; background: var(--sidebar); z-index: 10000; display: flex; align-items: center; justify-content: center; }
+.login-overlay.off { display: none; }
+.login-card { background: var(--white); border-radius: 16px; padding: 40px; width: 420px; max-width: 92vw; box-shadow: 0 25px 50px rgba(0,0,0,.25); }
+.login-card h1 { font-family: var(--mono); font-size: 1.6rem; font-weight: 700; color: var(--green); }
+.login-card .tagline { font-size: .82rem; color: var(--text3); margin-bottom: 24px; }
+.login-card label { display: block; font-size: .78rem; font-weight: 600; color: var(--text2); margin: 10px 0 4px; }
+.login-card input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-family: var(--mono); font-size: .85rem; background: var(--bg); outline: none; }
+.login-card input:focus { border-color: var(--green); }
+.login-card .btn { width: 100%; margin-top: 16px; padding: 11px; background: var(--green); color: #fff; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: .88rem; }
+.login-card .err { color: var(--red); font-size: .75rem; text-align: center; margin-top: 8px; min-height: 16px; }
+.login-card .note { margin-top: 14px; font-size: .7rem; color: var(--text3); font-family: var(--mono); }
+.app { display: none; width: 100%; } .app.on { display: flex; }
+.side { width: 240px; background: var(--sidebar); color: var(--sidebar-t); position: fixed; top: 0; left: 0; bottom: 0; display: flex; flex-direction: column; z-index: 100; overflow-y: auto; }
+.side-brand { padding: 20px 18px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #334155; }
+.side-brand h2 { font-family: var(--mono); font-size: 1rem; color: var(--green); }
+.side-brand span { font-size: .6rem; color: #475569; background: #334155; padding: 2px 6px; border-radius: 3px; }
+.side-section { padding: 12px 12px 4px; font-family: var(--mono); font-size: .58rem; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 1px; }
+.side-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 18px; margin: 1px 8px; border-radius: 6px; font-size: .82rem; cursor: pointer; color: var(--sidebar-t); }
+.side-item:hover { background: #1E293B; color: var(--sidebar-h); }
+.side-item.active { background: #10B98115; color: var(--green); font-weight: 600; }
+.side-item .cnt { font-family: var(--mono); font-size: .62rem; background: #334155; color: #CBD5E1; padding: 1px 6px; border-radius: 8px; }
+.side-item .cnt.red { background: var(--red); color: #fff; }
+.side-footer { margin-top: auto; padding: 14px 18px; border-top: 1px solid #334155; font-size: .68rem; color: #475569; }
+.side-footer a { color: var(--green); text-decoration: none; }
+.main-wrap { margin-left: 240px; flex: 1; min-height: 100vh; }
+.topbar { background: var(--white); border-bottom: 1px solid var(--border); padding: 0 24px; height: 52px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+.topbar-title { font-weight: 700; font-size: 1rem; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.badge-live { display: flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: .68rem; padding: 4px 10px; border-radius: 20px; background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.badge-live.down { background: var(--red-bg); color: var(--red); border-color: var(--red-border); }
+.user-menu { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); font-size: .78rem; color: var(--text2); cursor: pointer; background: var(--white); }
+.content { padding: 24px; }
+.page { display: none; } .page.active { display: block; }
+.page-head { margin-bottom: 20px; } .page-head h2 { font-size: 1.25rem; font-weight: 700; } .page-head p { font-size: .82rem; color: var(--text3); margin-top: 2px; }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.metric { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.metric-val { font-family: var(--mono); font-size: 1.6rem; font-weight: 700; } .metric-label { font-size: .72rem; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; } .metric-change { font-size: .72rem; margin-top: 4px; color: var(--text2); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 1100px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+.card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 16px; }
+.card-title { font-weight: 700; font-size: .9rem; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+table { width: 100%; border-collapse: collapse; font-size: .8rem; } th { text-align: left; font-family: var(--mono); font-size: .62rem; text-transform: uppercase; letter-spacing: .5px; color: var(--text3); padding: 8px 10px; border-bottom: 1px solid var(--border); }
+td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; } tr:last-child td { border-bottom: none; } .mono { font-family: var(--mono); font-size: .74rem; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-family: var(--mono); font-size: .62rem; font-weight: 600; text-transform: uppercase; }
+.b-green { background: var(--green-bg); color: var(--green2); border: 1px solid var(--green-border); } .b-red { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+.b-amber { background: var(--amber-bg); color: #B45309; border: 1px solid var(--amber-border); } .b-blue { background: var(--blue-bg); color: #1D4ED8; border: 1px solid var(--blue-border); } .b-grey { background: #F1F5F9; color: var(--text2); border: 1px solid var(--border); }
+.ev-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); } .ev-item:last-child { border-bottom: none; }
+.ev-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; } .ev-time { font-family: var(--mono); font-size: .66rem; color: var(--text3); } .ev-title { font-weight: 600; font-size: .82rem; } .ev-desc { font-size: .76rem; color: var(--text2); font-family: var(--mono); }
+.zone-bar { display: flex; align-items: center; gap: 14px; padding: 12px 16px; background: var(--white); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; } .zone-color { width: 6px; height: 40px; border-radius: 3px; } .zone-name { font-weight: 700; font-size: .88rem; } .zone-info { font-size: .74rem; color: var(--text2); font-family: var(--mono); }
+.proto-item { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 14px; } .proto-name { font-weight: 700; font-family: var(--mono); } .proto-port { font-size: .72rem; color: var(--text3); font-family: var(--mono); } .proto-stat { font-size: .76rem; color: var(--text2); margin-top: 6px; }
+button.act { padding: 4px 9px; border-radius: 5px; border: 1px solid var(--border); background: var(--white); cursor: pointer; font-size: .72rem; margin-right: 4px; } button.act:hover { border-color: var(--green); color: var(--green2); }
+.filters { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; } .filters select, .filters input { padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: .78rem; background: var(--white); }
+.tagbar { display: inline-block; width: 90px; height: 6px; background: #E2E8F0; border-radius: 3px; vertical-align: middle; margin-right: 6px; position: relative; } .tagbar i { position: absolute; top: -2px; width: 3px; height: 10px; background: var(--green2); border-radius: 1px; } .tagbar.low i, .tagbar.high i { background: var(--red); }
+pre { font-family: var(--mono); font-size: .72rem; background: #0F172A; color: #E2E8F0; padding: 12px; border-radius: 8px; overflow-x: auto; }
+#toast { position: fixed; right: 20px; bottom: 20px; padding: 10px 14px; border-radius: 8px; background: var(--sidebar); color: #fff; font-size: .8rem; display: none; z-index: 20000; }
+.empty { color: var(--text3); font-size: .8rem; padding: 12px 0; }
+</style>
+</head>
+<body>
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <h1>0xPlant</h1>
+    <div class="tagline">ICS/OT security console — sign in</div>
+    <label>Username</label><input id="loginUser" autocomplete="username">
+    <label>Password</label><input id="loginPass" type="password" autocomplete="current-password">
+    <button class="btn" id="loginBtn">Sign In</button>
+    <div class="err" id="loginErr"></div>
+    <div class="note" id="loginNote">Sessions expire; accounts lock after 5 failed attempts. All logins are audited.</div>
+  </div>
+</div>
+<div class="app" id="appShell">
+<div class="side">
+  <div class="side-brand"><h2>0xPlant</h2><span id="ver">v2</span></div>
+  <div class="side-section">Overview</div>
+  <div class="side-item active" data-page="dashboard"><span>Dashboard</span></div>
+  <div class="side-section">Infrastructure</div>
+  <div class="side-item" data-page="inventory"><span>Inventory</span><span class="cnt" id="n-assets"></span></div>
+  <div class="side-item" data-page="topology"><span>Topology</span></div>
+  <div class="side-item" data-page="protocols"><span>Protocols</span></div>
+  <div class="side-item" data-page="zones"><span>Purdue Zones</span></div>
+  <div class="side-section">Operations</div>
+  <div class="side-item" data-page="process"><span>Process Integrity</span><span class="cnt" id="n-process"></span></div>
+  <div class="side-item" data-page="events"><span>Events</span></div>
+  <div class="side-item" data-page="changes"><span>Change Tracking</span><span class="cnt" id="n-changes"></span></div>
+  <div class="side-item" data-page="alerts"><span>Alerts</span><span class="cnt" id="n-alerts"></span></div>
+  <div class="side-section">Security</div>
+  <div class="side-item" data-page="policy"><span>Conduit Policy</span></div>
+  <div class="side-item" data-page="sensors"><span>Sensors</span></div>
+  <div class="side-item" data-page="audit"><span>Audit Log</span></div>
+  <div class="side-item" data-page="settings"><span>Settings</span></div>
+  <div class="side-footer"><a href="https://github.com/SiteQ8/0xPlant">GitHub</a> · <a href="https://github.com/SiteQ8">@SiteQ8</a><br>Ali AlEnezi · MIT License</div>
+</div>
+<div class="main-wrap">
+  <div class="topbar">
+    <div class="topbar-title" id="pageTitle">Dashboard</div>
+    <div class="topbar-right"><div class="badge-live" id="liveBadge">● connecting</div><button class="user-menu" id="logoutBtn">…</button></div>
+  </div>
+  <div class="content">
+    <div class="page active" id="pg-dashboard"></div>
+    <div class="page" id="pg-inventory"></div>
+    <div class="page" id="pg-topology"></div>
+    <div class="page" id="pg-protocols"></div>
+    <div class="page" id="pg-zones"></div>
+    <div class="page" id="pg-process"></div>
+    <div class="page" id="pg-events"></div>
+    <div class="page" id="pg-changes"></div>
+    <div class="page" id="pg-alerts"></div>
+    <div class="page" id="pg-policy"></div>
+    <div class="page" id="pg-sensors"></div>
+    <div class="page" id="pg-audit"></div>
+    <div class="page" id="pg-settings"></div>
+  </div>
+</div>
+</div>
+<div id="toast"></div>
+<script src="/app.js"></script>
+</body>
+</html>

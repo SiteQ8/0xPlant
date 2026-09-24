@@ -1,0 +1,119 @@
+# 0xPlant lab: a simulated water treatment plant protected by 0xPlant.
+#
+# Purdue layout enforced with Docker networks:
+#   l1_control      10.10.1.0/24  internal, no route out. PLCs live here.
+#   l2_supervisory  10.10.3.0/24  HMI, 0xPlant sensors (conduit faces) and console polling.
+#   l3_operations   10.10.4.0/24  Console UI/API, engineering workstation.
+#
+# The only way from L2/L3 into L1 is through a sensor container running a 0xPlant conduit.
+
+x-image: &image
+  build: .
+  image: oxplant/lab:2.0
+
+# Lets the non-root container user bind the real Modbus port 502.
+x-privileged-ports: &privileged-ports
+  sysctls:
+    net.ipv4.ip_unprivileged_port_start: 0
+
+x-sensor-env: &sensor-env
+  environment:
+    OXPLANT_SENSOR_TOKEN: ${OXPLANT_SENSOR_TOKEN:-change-me-before-production}
+
+networks:
+  l1_control:
+    internal: true
+    ipam: {config: [{subnet: 10.10.1.0/24}]}
+  l2_supervisory:
+    ipam: {config: [{subnet: 10.10.3.0/24}]}
+  l3_operations:
+    ipam: {config: [{subnet: 10.10.4.0/24}]}
+
+volumes:
+  oxplant-data:
+
+services:
+  # ---------------- Level 1: PLCs ----------------
+  plc-001:
+    <<: [*image, *privileged-ports]
+    container_name: plc-001
+    command: ["python", "-m", "plant", "-c", "config/plant.docker.yaml", "plc", "--name", "PLC-001"]
+    networks: {l1_control: {ipv4_address: 10.10.1.10}}
+    restart: unless-stopped
+  plc-002:
+    <<: [*image, *privileged-ports]
+    container_name: plc-002
+    command: ["python", "-m", "plant", "-c", "config/plant.docker.yaml", "plc", "--name", "PLC-002"]
+    networks: {l1_control: {ipv4_address: 10.10.1.11}}
+    restart: unless-stopped
+  plc-003:
+    <<: [*image, *privileged-ports]
+    container_name: plc-003
+    command: ["python", "-m", "plant", "-c", "config/plant.docker.yaml", "plc", "--name", "PLC-003"]
+    networks: {l1_control: {ipv4_address: 10.10.1.12}}
+    restart: unless-stopped
+
+  # ---------------- 0xPlant sensors (conduits) ----------------
+  sensor-001:
+    <<: [*image, *privileged-ports, *sensor-env]
+    container_name: oxplant-sensor-001
+    command: ["python", "-m", "oxplant", "-c", "config/oxplant.docker.yaml", "sensor", "--name", "SENSOR-001"]
+    networks:
+      l1_control: {ipv4_address: 10.10.1.110}
+      l2_supervisory: {ipv4_address: 10.10.3.10}
+    depends_on: [console, plc-001]
+    restart: unless-stopped
+  sensor-002:
+    <<: [*image, *privileged-ports, *sensor-env]
+    container_name: oxplant-sensor-002
+    command: ["python", "-m", "oxplant", "-c", "config/oxplant.docker.yaml", "sensor", "--name", "SENSOR-002"]
+    networks:
+      l1_control: {ipv4_address: 10.10.1.111}
+      l2_supervisory: {ipv4_address: 10.10.3.11}
+    depends_on: [console, plc-002]
+    restart: unless-stopped
+  sensor-003:
+    <<: [*image, *privileged-ports, *sensor-env]
+    container_name: oxplant-sensor-003
+    command: ["python", "-m", "oxplant", "-c", "config/oxplant.docker.yaml", "sensor", "--name", "SENSOR-003"]
+    networks:
+      l1_control: {ipv4_address: 10.10.1.112}
+      l2_supervisory: {ipv4_address: 10.10.3.12}
+    depends_on: [console, plc-003]
+    restart: unless-stopped
+
+  # ---------------- 0xPlant console ----------------
+  console:
+    <<: *image
+    container_name: oxplant-console
+    command: ["python", "-m", "oxplant", "-c", "config/oxplant.docker.yaml", "console"]
+    environment:
+      OXPLANT_SENSOR_TOKEN: ${OXPLANT_SENSOR_TOKEN:-change-me-before-production}
+    networks:
+      l2_supervisory: {ipv4_address: 10.10.3.100}
+      l3_operations: {ipv4_address: 10.10.4.100}
+    ports: ["8000:8000"]
+    volumes: [oxplant-data:/app/data]
+    restart: unless-stopped
+
+  # ---------------- Level 2: operator HMI ----------------
+  hmi:
+    <<: *image
+    container_name: hmi-001
+    command: ["python", "-m", "plant", "-c", "config/plant.docker.yaml", "hmi"]
+    networks: {l2_supervisory: {ipv4_address: 10.10.3.30}}
+    ports: ["8080:8080"]
+    depends_on: [sensor-001, sensor-002, sensor-003]
+    restart: unless-stopped
+
+  # ---------------- Level 3: engineering workstation ----------------
+  # Idle container; use it for approved engineering changes, e.g.
+  #   docker compose exec ews python -m plant -c config/plant.docker.yaml ews --plc PLC-002 write AAHH_LIMIT=3.5
+  ews:
+    <<: *image
+    container_name: ews-001
+    command: ["sleep", "infinity"]
+    networks:
+      l2_supervisory: {ipv4_address: 10.10.3.40}
+      l3_operations: {ipv4_address: 10.10.4.40}
+    restart: unless-stopped

@@ -1,0 +1,137 @@
+# 0xPlant - Docker Compose configuration (see docker-compose.yml and config/plant.docker.yaml)
+site: "0xPlant Water Works"
+
+console:
+  listen: 0.0.0.0
+  port: 8000
+  url: http://10.10.3.100:8000
+  sensor_token: "${OXPLANT_SENSOR_TOKEN}"   # set in the environment (docker-compose.yml)
+  session_hours: 8
+  database: data/oxplant.db
+  users:
+    # admin / Plant@2025  - generate new hashes with: python -m oxplant hash-password
+    - {username: admin,    role: admin,    password_hash: "pbkdf2_sha256$600000$b3hwbGFudC1sb2NhbC1zYWx0$c5453364dd1c7d7577cba777d013678e63de1bee91303d22f2a5a5a3403c85f6"}
+    - {username: engineer, role: engineer, password_hash: "pbkdf2_sha256$600000$b3hwbGFudC1sb2NhbC1zYWx0$c5453364dd1c7d7577cba777d013678e63de1bee91303d22f2a5a5a3403c85f6"}
+    - {username: soc,      role: soc,      password_hash: "pbkdf2_sha256$600000$b3hwbGFudC1sb2NhbC1zYWx0$c5453364dd1c7d7577cba777d013678e63de1bee91303d22f2a5a5a3403c85f6"}
+    - {username: operator, role: viewer,   password_hash: "pbkdf2_sha256$600000$b3hwbGFudC1sb2NhbC1zYWx0$c5453364dd1c7d7577cba777d013678e63de1bee91303d22f2a5a5a3403c85f6"}
+  outputs:
+    syslog: {host: "", port: 514}      # set a host to forward CEF over UDP syslog
+    webhook: {url: ""}                 # set a URL to POST alerts as JSON
+    min_severity: warning
+
+zones:
+  - {id: L1, level: 1, name: "Level 1 - Basic Control",        subnets: ["10.10.1.0/24"], color: "#EAB308"}
+  - {id: L2, level: 2, name: "Level 2 - Supervisory Control",  subnets: ["10.10.3.0/24"], color: "#10B981"}
+  - {id: L3, level: 3, name: "Level 3 - Site Operations",      subnets: ["10.10.4.0/24"], color: "#14B8A6"}
+
+assets:
+  - {id: PLC-001, name: "Intake PLC",            type: PLC, ip: 10.10.1.10, zone: L1, ports: [502], protocols: [Modbus/TCP], criticality: high}
+  - {id: PLC-002, name: "Treatment PLC",         type: PLC, ip: 10.10.1.11, zone: L1, ports: [502], protocols: [Modbus/TCP], criticality: critical}
+  - {id: PLC-003, name: "Distribution PLC",      type: PLC, ip: 10.10.1.12, zone: L1, ports: [502], protocols: [Modbus/TCP], criticality: high}
+  - {id: CONDUIT-001, name: "Conduit to PLC-001", type: Conduit, ip: 10.10.3.10, zone: L2, ports: [502], protocols: [Modbus/TCP]}
+  - {id: CONDUIT-002, name: "Conduit to PLC-002", type: Conduit, ip: 10.10.3.11, zone: L2, ports: [502], protocols: [Modbus/TCP]}
+  - {id: CONDUIT-003, name: "Conduit to PLC-003", type: Conduit, ip: 10.10.3.12, zone: L2, ports: [502], protocols: [Modbus/TCP]}
+  - {id: HMI-001, name: "Operator Station 1",    type: HMI, ip: 10.10.3.30, zone: L2, ports: [8080], protocols: [Modbus/TCP, HTTP]}
+  - {id: OXP-CONSOLE, name: "0xPlant Console",   type: Server, ip: 10.10.3.100, zone: L2, ports: [8000], protocols: [Modbus/TCP, HTTP]}
+  - {id: EWS-001, name: "Engineering Workstation", type: EWS, ip: 10.10.3.40, zone: L3, protocols: [Modbus/TCP], description: "Dual-homed 10.10.4.40 (L3) / 10.10.3.40 (L2 leg seen by the conduits)"}
+
+# IEC 62443 conduits: the only path from Level 2/3 into Level 1.
+conduits:
+  - id: CONDUIT-001
+    asset: PLC-001
+    listen:   {host: 10.10.3.10, port: 502}
+    upstream: {host: 10.10.1.10, port: 502}
+    default: deny
+    max_rps: 60
+    rules:
+      - {asset: HMI-001,     allow: [read],                 writes: {holding: ["100-119"], coils: ["0-7"]}}
+      - {asset: EWS-001,     allow: [read, write, identification]}
+      - {asset: OXP-CONSOLE, allow: [read, identification]}
+  - id: CONDUIT-002
+    asset: PLC-002
+    listen:   {host: 10.10.3.11, port: 502}
+    upstream: {host: 10.10.1.11, port: 502}
+    default: deny
+    max_rps: 60
+    rules:
+      - {asset: HMI-001,     allow: [read],                 writes: {holding: ["100-119"], coils: ["0-7"]}}
+      - {asset: EWS-001,     allow: [read, write, identification]}
+      - {asset: OXP-CONSOLE, allow: [read, identification]}
+  - id: CONDUIT-003
+    asset: PLC-003
+    listen:   {host: 10.10.3.12, port: 502}
+    upstream: {host: 10.10.1.12, port: 502}
+    default: deny
+    max_rps: 60
+    rules:
+      - {asset: HMI-001,     allow: [read],                 writes: {holding: ["100-119"], coils: ["0-7"]}}
+      - {asset: EWS-001,     allow: [read, write, identification]}
+      - {asset: OXP-CONSOLE, allow: [read, identification]}
+
+sensors:
+  - {name: SENSOR-001, console_url: http://10.10.3.100:8000, conduits: [CONDUIT-001]}
+  - {name: SENSOR-002, console_url: http://10.10.3.100:8000, conduits: [CONDUIT-002]}
+  - {name: SENSOR-003, console_url: http://10.10.3.100:8000, conduits: [CONDUIT-003]}
+
+discovery:
+  - {runner: SENSOR-001, zone: L1, targets: ["10.10.1.0/24"], ports: [502, 102, 4840, 44818, 20000, 1883, 47808, 2404, 23, 21, 80], interval_s: 120}
+  - {runner: console,    zone: L2, targets: ["10.10.3.0/24"], ports: [502, 4840, 8080, 1883, 23, 21, 80, 445], interval_s: 120}
+  - {runner: console,    zone: L3, targets: ["10.10.4.0/24"], ports: [502, 8000, 8080, 3389, 445, 23, 21, 80], interval_s: 120}
+
+# Process integrity monitoring (read-only, through the conduits)
+integrity:
+  poll_s: 2
+  identity_s: 30
+  targets:
+    - asset: PLC-001
+      host: 10.10.3.10
+      port: 502
+      tags:
+        - {name: LT-101, table: input, address: 0, scale: 100, unit: "%",   role: process, min: 8,  max: 92, desc: "Intake tank level"}
+        - {name: FT-101, table: input, address: 1, scale: 10,  unit: m3/h,  role: process, min: 0,  max: 160, desc: "Raw water flow"}
+        - {name: AT-101, table: input, address: 2, scale: 10,  unit: NTU,   role: process, min: 0,  max: 25, desc: "Turbidity"}
+        - {name: LEVEL_START_SP, table: holding, address: 100, scale: 100, unit: "%", role: setpoint}
+        - {name: LEVEL_STOP_SP,  table: holding, address: 101, scale: 100, unit: "%", role: setpoint}
+        - {name: PUMP_SPEED_SP,  table: holding, address: 102, scale: 100, unit: "%", role: setpoint}
+        - {name: LAHH_LIMIT,     table: holding, address: 200, scale: 100, unit: "%", role: config, golden: 95}
+        - {name: TURB_HIGH_LIMIT,table: holding, address: 201, scale: 10,  unit: NTU, role: config, golden: 20}
+        - {name: PUMP_MAX_SPEED, table: holding, address: 202, scale: 100, unit: "%", role: config, golden: 100}
+        - {name: LALL_LIMIT,     table: holding, address: 203, scale: 100, unit: "%", role: config, golden: 10}
+        - {name: INTERLOCK_WORD, table: holding, address: 2,   scale: 1, role: interlock}
+        - {name: AUTO_ACTIVE,    table: discrete, address: 5,  role: status}
+    - asset: PLC-002
+      host: 10.10.3.11
+      port: 502
+      tags:
+        - {name: FT-201,  table: input, address: 0, scale: 10,  unit: m3/h, role: process, min: 0,   max: 210}
+        - {name: AT-201,  table: input, address: 1, scale: 100, unit: mg/L, role: process, min: 0.3, max: 3.0, desc: "Free chlorine residual"}
+        - {name: AT-202,  table: input, address: 2, scale: 100, unit: pH,   role: process, min: 6.5, max: 8.5}
+        - {name: PDT-201, table: input, address: 3, scale: 10,  unit: kPa,  role: process, min: 0,   max: 80}
+        - {name: CL2_SP,          table: holding, address: 100, scale: 100, unit: mg/L, role: setpoint}
+        - {name: FLOW_SP,         table: holding, address: 101, scale: 10,  unit: m3/h, role: setpoint}
+        - {name: BACKWASH_DP_SP,  table: holding, address: 102, scale: 10,  unit: kPa,  role: setpoint}
+        - {name: MANUAL_STROKE_SP,table: holding, address: 103, scale: 100, unit: "%",  role: setpoint}
+        - {name: AAHH_LIMIT, table: holding, address: 200, scale: 100, unit: mg/L, role: config, golden: 4.0}
+        - {name: AALL_LIMIT, table: holding, address: 201, scale: 100, unit: mg/L, role: config, golden: 0.5}
+        - {name: PI_KP,      table: holding, address: 202, scale: 100, role: config, golden: 2.0}
+        - {name: PI_TI,      table: holding, address: 203, scale: 10,  unit: s, role: config, golden: 60}
+        - {name: MAX_STROKE, table: holding, address: 204, scale: 100, unit: "%", role: config, golden: 100}
+        - {name: CLEARWELL_STOP,    table: holding, address: 205, scale: 100, unit: "%", role: config, golden: 88}
+        - {name: CLEARWELL_RESTART, table: holding, address: 206, scale: 100, unit: "%", role: config, golden: 70}
+        - {name: INTERLOCK_WORD, table: holding, address: 2, scale: 1, role: interlock}
+        - {name: AUTO_ACTIVE,    table: discrete, address: 5, role: status}
+    - asset: PLC-003
+      host: 10.10.3.12
+      port: 502
+      tags:
+        - {name: LT-301, table: input, address: 0, scale: 100, unit: "%",  role: process, min: 12, max: 95}
+        - {name: PT-301, table: input, address: 1, scale: 100, unit: bar,  role: process, min: 2.5, max: 5.5, desc: "Network pressure"}
+        - {name: FT-301, table: input, address: 2, scale: 10,  unit: m3/h, role: process, min: 0, max: 230}
+        - {name: PRESSURE_SP,     table: holding, address: 100, scale: 100, unit: bar, role: setpoint}
+        - {name: LAG_START_DELTA, table: holding, address: 101, scale: 100, unit: bar, role: setpoint}
+        - {name: LALL_LIMIT, table: holding, address: 200, scale: 100, unit: "%", role: config, golden: 10}
+        - {name: PAHH_LIMIT, table: holding, address: 201, scale: 100, unit: bar, role: config, golden: 6.0}
+        - {name: PALL_LIMIT, table: holding, address: 202, scale: 100, unit: bar, role: config, golden: 2.5}
+        - {name: MAX_SPEED,  table: holding, address: 203, scale: 100, unit: "%", role: config, golden: 100}
+        - {name: INTERLOCK_WORD, table: holding, address: 2, scale: 1, role: interlock}
+        - {name: AUTO_ACTIVE,    table: discrete, address: 5, role: status}

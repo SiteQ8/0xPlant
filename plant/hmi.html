@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0xPlant Water Works — Operator HMI</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%230EA5E9'/><text x='8' y='12' text-anchor='middle' font-size='7' fill='%23000' font-weight='bold'>WW</text></svg>">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0B1220;--panel:#111A2E;--panel2:#16213A;--line:#243352;--text:#E2E8F0;--muted:#94A3B8;--ok:#22C55E;--warn:#F59E0B;--bad:#EF4444;--blue:#38BDF8;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--sans:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px}
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:1.05rem;font-family:var(--mono);color:var(--blue)}
+header h1 span{color:var(--muted);font-weight:400;font-size:.8rem;margin-left:8px}
+.status{display:flex;gap:14px;font-family:var(--mono);font-size:.75rem;color:var(--muted);align-items:center}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad);margin-right:5px}
+.dot.on{background:var(--ok)}
+main{padding:16px 20px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:1100px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.card h2{font-size:.85rem;font-family:var(--mono);padding:10px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.card h2 small{color:var(--muted);font-weight:400}
+.pid{padding:10px 14px}
+svg{width:100%;height:190px;display:block}
+.vals{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;padding:6px 14px 12px;font-family:var(--mono);font-size:.78rem}
+.vals div{display:flex;justify-content:space-between;border-bottom:1px dashed var(--line);padding:3px 0}
+.vals b{color:var(--blue);font-weight:600}
+.vals .a{color:var(--bad)}
+.ctl{padding:10px 14px;border-top:1px solid var(--line);background:var(--panel2)}
+.ctl .row{display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap}
+.ctl label{font-size:.72rem;color:var(--muted);min-width:150px}
+.ctl input{width:84px;padding:5px 8px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:.78rem}
+button{padding:5px 10px;border-radius:6px;border:1px solid var(--line);background:#1E293B;color:var(--text);cursor:pointer;font-size:.75rem}
+button:hover{border-color:var(--blue)}
+button.primary{background:#0369A1;border-color:#0EA5E9}
+button.danger{background:#7F1D1D;border-color:#EF4444}
+.mode{font-family:var(--mono);font-size:.7rem;padding:2px 8px;border-radius:10px;border:1px solid var(--line)}
+.mode.auto{color:var(--ok);border-color:var(--ok)}
+.mode.man{color:var(--warn);border-color:var(--warn)}
+#alarms{grid-column:1/-1}
+#alarms ul{list-style:none;padding:8px 14px;font-family:var(--mono);font-size:.78rem}
+#alarms li{padding:4px 0;border-bottom:1px dashed var(--line)}
+#alarms li.trip{color:var(--bad)} #alarms li.alarm{color:var(--warn)} #alarms li.none{color:var(--ok)}
+#trend{grid-column:1/-1}
+canvas{width:100%;height:160px;display:block;padding:8px 14px}
+#toast{position:fixed;right:20px;bottom:20px;padding:10px 14px;border-radius:8px;background:#1E293B;border:1px solid var(--line);font-size:.8rem;display:none;max-width:420px}
+#toast.err{border-color:var(--bad);color:#FCA5A5}#toast.ok{border-color:var(--ok);color:#86EFAC}
+footer{padding:8px 20px;color:var(--muted);font-size:.7rem;font-family:var(--mono)}
+</style>
+</head>
+<body>
+<header>
+  <h1>0xPlant Water Works <span>Operator HMI · HMI-001</span></h1>
+  <div class="status">
+    <span>SIM CLOCK <b id="clock">--:--</b></span>
+    <span id="links"></span>
+  </div>
+</header>
+<main>
+  <div class="card" id="c-intake"><h2>INTAKE — PLC-001 <span class="mode" id="m-PLC-001">…</span></h2>
+    <div class="pid"><svg viewBox="0 0 320 190">
+      <text x="10" y="18" fill="#94A3B8" font-size="10" font-family="monospace">RIVER</text>
+      <path d="M10 26 Q 30 20 50 26 T 90 26" stroke="#38BDF8" fill="none" stroke-width="2"/>
+      <circle id="p101" cx="120" cy="60" r="16" fill="#334155" stroke="#94A3B8"/><text x="120" y="64" fill="#fff" font-size="9" text-anchor="middle" font-family="monospace">P-101</text>
+      <line x1="90" y1="26" x2="90" y2="60" stroke="#94A3B8" stroke-width="2"/><line x1="90" y1="60" x2="104" y2="60" stroke="#94A3B8" stroke-width="2"/>
+      <line x1="136" y1="60" x2="180" y2="60" stroke="#94A3B8" stroke-width="2"/>
+      <rect id="mov101" x="180" y="52" width="16" height="16" fill="#334155" stroke="#94A3B8"/><text x="188" y="48" fill="#94A3B8" font-size="8" text-anchor="middle" font-family="monospace">MOV-101</text>
+      <line x1="196" y1="60" x2="240" y2="60" stroke="#94A3B8" stroke-width="2"/><line x1="240" y1="60" x2="240" y2="80" stroke="#94A3B8" stroke-width="2"/>
+      <rect x="200" y="80" width="80" height="90" fill="#0B1220" stroke="#94A3B8"/>
+      <rect id="t101" x="201" y="169" width="78" height="0" fill="#0EA5E9" opacity=".8"/>
+      <text x="240" y="184" fill="#94A3B8" font-size="9" text-anchor="middle" font-family="monospace">T-101 INTAKE TANK</text>
+      <text id="lt101" x="240" y="128" fill="#fff" font-size="13" text-anchor="middle" font-family="monospace" font-weight="bold">--%</text>
+      <line x1="280" y1="150" x2="310" y2="150" stroke="#94A3B8" stroke-width="2"/><text x="296" y="145" fill="#94A3B8" font-size="8" text-anchor="middle" font-family="monospace">to F-201</text>
+    </svg></div>
+    <div class="vals" id="v-PLC-001"></div>
+    <div class="ctl" id="k-PLC-001"></div>
+  </div>
+  <div class="card" id="c-treat"><h2>TREATMENT — PLC-002 <span class="mode" id="m-PLC-002">…</span></h2>
+    <div class="pid"><svg viewBox="0 0 320 190">
+      <line x1="10" y1="60" x2="40" y2="60" stroke="#94A3B8" stroke-width="2"/><text x="24" y="52" fill="#94A3B8" font-size="8" text-anchor="middle" font-family="monospace">from T-101</text>
+      <circle id="p202" cx="56" cy="60" r="16" fill="#334155" stroke="#94A3B8"/><text x="56" y="64" fill="#fff" font-size="9" text-anchor="middle" font-family="monospace">P-202</text>
+      <line x1="72" y1="60" x2="110" y2="60" stroke="#94A3B8" stroke-width="2"/>
+      <rect id="f201" x="110" y="35" width="60" height="50" fill="#1E293B" stroke="#94A3B8"/><text x="140" y="56" fill="#fff" font-size="9" text-anchor="middle" font-family="monospace">F-201</text><text id="pdt201" x="140" y="70" fill="#fff" font-size="9" text-anchor="middle" font-family="monospace">-- kPa</text>
+      <line x1="170" y1="60" x2="230" y2="60" stroke="#94A3B8" stroke-width="2"/>
+      <circle id="p201" cx="200" cy="20" r="12" fill="#334155" stroke="#94A3B8"/><text x="200" y="23" fill="#fff" font-size="8" text-anchor="middle" font-family="monospace">P-201</text>
+      <line x1="200" y1="32" x2="200" y2="60" stroke="#F59E0B" stroke-width="2" stroke-dasharray="3 2"/><text x="222" y="24" fill="#94A3B8" font-size="8" font-family="monospace">Cl2</text>
+      <rect x="230" y="40" width="80" height="120" fill="#0B1220" stroke="#94A3B8"/>
+      <rect id="t201" x="231" y="159" width="78" height="0" fill="#0EA5E9" opacity=".8"/>
+      <text x="270" y="176" fill="#94A3B8" font-size="9" text-anchor="middle" font-family="monospace">T-201 CONTACT TANK</text>
+      <text id="at201" x="270" y="95" fill="#fff" font-size="13" text-anchor="middle" font-family="monospace" font-weight="bold">-- mg/L</text>
+      <text id="at202" x="270" y="112" fill="#94A3B8" font-size="9" text-anchor="middle" font-family="monospace">pH --</text>
+    </svg></div>
+    <div class="vals" id="v-PLC-002"></div>
+    <div class="ctl" id="k-PLC-002"></div>
+  </div>
+  <div class="card" id="c-dist"><h2>DISTRIBUTION — PLC-003 <span class="mode" id="m-PLC-003">…</span></h2>
+    <div class="pid"><svg viewBox="0 0 320 190">
+      <line x1="10" y1="60" x2="40" y2="60" stroke="#94A3B8" stroke-width="2"/><text x="24" y="52" fill="#94A3B8" font-size="8" text-anchor="middle" font-family="monospace">from T-201</text>
+      <rect x="40" y="40" width="80" height="120" fill="#0B1220" stroke="#94A3B8"/>
+      <rect id="t301" x="41" y="159" width="78" height="0" fill="#0EA5E9" opacity=".8"/>
+      <text x="80" y="176" fill="#94A3B8" font-size="9" text-anchor="middle" font-family="monospace">T-301 CLEARWELL</text>
+      <text id="lt301" x="80" y="95" fill="#fff" font-size="13" text-anchor="middle" font-family="monospace" font-weight="bold">--%</text>
+      <line x1="120" y1="150" x2="160" y2="150" stroke="#94A3B8" stroke-width="2"/><line x1="160" y1="150" x2="160" y2="50" stroke="#94A3B8" stroke-width="2"/>
+      <line x1="160" y1="50" x2="176" y2="50" stroke="#94A3B8" stroke-width="2"/><line x1="160" y1="110" x2="176" y2="110" stroke="#94A3B8" stroke-width="2"/>
+      <circle id="p301" cx="192" cy="50" r="16" fill="#334155" stroke="#94A3B8"/><text x="192" y="54" fill="#fff" font-size="9" text-anchor="middle" font-family="monospace">P-301</text>
+      <circle id="p302" cx="192" cy="110" r="16" fill="#334155" stroke="#94A3B8"/><text x="192" y="114" fill="#fff" font-size="9" text-anchor="middle" font-family="monospace">P-302</text>
+      <line x1="208" y1="50" x2="240" y2="50" stroke="#94A3B8" stroke-width="2"/><line x1="208" y1="110" x2="240" y2="110" stroke="#94A3B8" stroke-width="2"/><line x1="240" y1="50" x2="240" y2="110" stroke="#94A3B8" stroke-width="2"/>
+      <line x1="240" y1="80" x2="300" y2="80" stroke="#94A3B8" stroke-width="2"/>
+      <text x="270" y="72" fill="#94A3B8" font-size="8" text-anchor="middle" font-family="monospace">PT-301</text>
+      <text id="pt301" x="270" y="98" fill="#fff" font-size="13" text-anchor="middle" font-family="monospace" font-weight="bold">-- bar</text>
+      <text x="270" y="130" fill="#94A3B8" font-size="8" text-anchor="middle" font-family="monospace">NETWORK</text>
+    </svg></div>
+    <div class="vals" id="v-PLC-003"></div>
+    <div class="ctl" id="k-PLC-003"></div>
+  </div>
+  <div class="card" id="alarms"><h2>ALARMS &amp; INTERLOCKS</h2><ul id="alarmlist"></ul></div>
+  <div class="card" id="trend"><h2>TREND <small>LT-101 level % · AT-201 chlorine mg/L ×20 · PT-301 pressure bar ×20</small></h2><canvas id="tr" width="1200" height="160"></canvas></div>
+</main>
+<footer>0xPlant Water Works · simulated plant for the 0xPlant lab · operator writes go through the 0xPlant protective conduits</footer>
+<div id="toast"></div>
+<script>
+const fmt=(v,d)=>v==null?'--':Number(v).toFixed(d);
+const VIEW={
+ 'PLC-001':[['LT-101',1],['FT-101',0],['AT-101',1],['SC-101',0],['IT-101',1],['LT-100',2],['FT-201-R',0],['LEVEL_START_SP',1],['LEVEL_STOP_SP',1],['PUMP_SPEED_SP',0],['LAHH_LIMIT',1],['PUMP_MAX_SPEED',0]],
+ 'PLC-002':[['FT-201',0],['AT-201',2],['AT-202',2],['PDT-201',1],['LT-201',1],['SC-201',0],['LT-101-R',1],['CL2_SP',2],['FLOW_SP',0],['BACKWASH_DP_SP',0],['AAHH_LIMIT',2],['PI_KP',2]],
+ 'PLC-003':[['LT-301',1],['PT-301',2],['FT-301',0],['FQ-301',0],['SC-301',0],['SC-302',0],['FT-201-R',0],['PRESSURE_SP',2],['LAG_START_DELTA',2],['LALL_LIMIT',1],['PAHH_LIMIT',2],['MAX_SPEED',0]]};
+const CTL={
+ 'PLC-001':{sp:[['LEVEL_START_SP','Start pump below %'],['LEVEL_STOP_SP','Stop pump above %'],['PUMP_SPEED_SP','Pump speed %']],btn:[['PUMP_START_CMD','Start P-101',1,'primary'],['PUMP_STOP_CMD','Stop P-101',1,'danger'],['VALVE_OPEN_CMD','Toggle MOV-101','toggle','']]},
+ 'PLC-002':{sp:[['CL2_SP','Chlorine SP mg/L'],['FLOW_SP','Flow SP m3/h'],['BACKWASH_DP_SP','Backwash dP kPa'],['MANUAL_STROKE_SP','Manual stroke %']],btn:[['BACKWASH_CMD','Start backwash',1,'primary'],['DOSING_ENABLE_CMD','Toggle dosing','toggle',''],['TRANSFER_RUN_CMD','Toggle P-202','toggle','']]},
+ 'PLC-003':{sp:[['PRESSURE_SP','Pressure SP bar'],['LAG_START_DELTA','Lag start delta bar']],btn:[['P301_RUN_CMD','Toggle P-301','toggle',''],['P302_RUN_CMD','Toggle P-302','toggle',''],['STOP_ALL_CMD','Stop all',1,'danger']]}};
+const ALARMS={
+ 'PLC-001':[['LAHH_TRIP','T-101 level high-high interlock','trip'],['TURB_HIGH','Raw water turbidity high','alarm'],['LALL_ALARM','T-101 level low-low','alarm']],
+ 'PLC-002':[['AAHH_TRIP','Chlorine residual high-high interlock','trip'],['AALL_ALARM','Chlorine residual low','alarm'],['DP_HIGH','Filter F-201 dP high','alarm']],
+ 'PLC-003':[['LALL_TRIP','Clearwell low-low interlock','trip'],['PAHH_TRIP','Network pressure high-high interlock','trip'],['PALL_ALARM','Network pressure low','alarm']]};
+const hist=[];let built={};
+function toast(msg,cls){const t=document.getElementById('toast');t.textContent=msg;t.className=cls;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',4000);}
+async function write(plc,tag,value){const r=await fetch('/api/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plc,tag,value})});const j=await r.json();if(j.ok)toast(`${plc} ${tag} ← ${value}`,'ok');else toast(`${plc} ${tag}: ${j.error}`,'err');}
+function buildControls(plc,tags){const k=document.getElementById('k-'+plc);const c=CTL[plc];let h=`<div class="row"><label>Control mode</label><button data-mode="1">AUTO</button><button data-mode="0">MANUAL</button></div>`;
+ for(const [tag,label] of c.sp)h+=`<div class="row"><label>${label}</label><input data-sp="${tag}" value="${fmt(tags[tag],2)}"><button data-apply="${tag}">Apply</button></div>`;
+ h+='<div class="row">'+c.btn.map(b=>`<button data-btn="${b[0]}" data-kind="${b[2]}" class="${b[3]}">${b[1]}</button>`).join('')+'</div>';k.innerHTML=h;
+ k.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>write(plc,'AUTO_MODE',+b.dataset.mode));
+ k.querySelectorAll('[data-apply]').forEach(b=>b.onclick=()=>write(plc,b.dataset.apply,parseFloat(k.querySelector(`[data-sp="${b.dataset.apply}"]`).value)));
+ k.querySelectorAll('[data-btn]').forEach(b=>b.onclick=()=>{const cur=(latest[plc]||{})[b.dataset.btn]||0;write(plc,b.dataset.btn,b.dataset.kind==='toggle'?(cur?0:1):1);});built[plc]=true;}
+let latest={};
+function render(s){const links=[];const now=new Date(s.ts*1000);
+ for(const [plc,st] of Object.entries(s.plcs)){const t=st.tags||{};latest[plc]=t;links.push(`<span><i class="dot ${st.online?'on':''}"></i>${plc}</span>`);
+  if(!built[plc]&&st.online)buildControls(plc,t);
+  const m=document.getElementById('m-'+plc);if(st.online){m.textContent=t.AUTO_ACTIVE?'AUTO':'MANUAL';m.className='mode '+(t.AUTO_ACTIVE?'auto':'man');}else{m.textContent='OFFLINE';m.className='mode';}
+  const v=document.getElementById('v-'+plc);v.innerHTML=VIEW[plc].map(([n,d])=>{const def=(st.tag_defs||[]).find(x=>x.name===n)||{};return `<div><span>${n}</span><b>${fmt(t[n],d)} ${def.unit||''}</b></div>`}).join('');
+  if(!st.online)v.innerHTML=`<div class="a">${st.error||'offline'}</div>`;
+ }
+ document.getElementById('links').innerHTML=links.join('');
+ const t1=latest['PLC-001']||{},t2=latest['PLC-002']||{},t3=latest['PLC-003']||{};
+ const sim=t1.SIM_HOUR??t2.SIM_HOUR??t3.SIM_HOUR;if(sim!=null){const h=Math.floor(sim),mi=Math.floor((sim-h)*60);document.getElementById('clock').textContent=`${String(h).padStart(2,'0')}:${String(mi).padStart(2,'0')}`;}
+ const lvl=(id,pct,top,h)=>{const e=document.getElementById(id);const hh=Math.max(0,Math.min(h,h*(pct||0)/100));e.setAttribute('height',hh);e.setAttribute('y',top+h-hh);};
+ lvl('t101',t1['LT-101'],81,88);lvl('t201',t2['LT-201'],41,118);lvl('t301',t3['LT-301'],41,118);
+ document.getElementById('lt101').textContent=fmt(t1['LT-101'],1)+'%';document.getElementById('at201').textContent=fmt(t2['AT-201'],2)+' mg/L';document.getElementById('at202').textContent='pH '+fmt(t2['AT-202'],2);document.getElementById('pdt201').textContent=fmt(t2['PDT-201'],1)+' kPa';document.getElementById('lt301').textContent=fmt(t3['LT-301'],1)+'%';document.getElementById('pt301').textContent=fmt(t3['PT-301'],2)+' bar';
+ const run=(id,on,col)=>document.getElementById(id).setAttribute('fill',on?(col||'#16A34A'):'#334155');
+ run('p101',t1.PUMP_RUNNING);run('mov101',t1.VALVE_OPEN,'#0EA5E9');run('p202',t2.TRANSFER_RUNNING);run('p201',t2.DOSING_RUNNING,'#D97706');run('f201',t2.BACKWASH_ACTIVE,'#7C3AED');run('p301',t3.P301_RUNNING);run('p302',t3.P302_RUNNING);
+ const al=[];for(const [plc,list] of Object.entries(ALARMS))for(const [tag,txt,cls] of list)if((latest[plc]||{})[tag])al.push(`<li class="${cls}">${plc} · ${txt}</li>`);
+ for(const [plc,st] of Object.entries(s.plcs))if(!st.online)al.push(`<li class="trip">${plc} · communication lost (${st.error||''})</li>`);
+ document.getElementById('alarmlist').innerHTML=al.length?al.join(''):'<li class="none">No active alarms</li>';
+ hist.push([t1['LT-101']||0,(t2['AT-201']||0)*20,(t3['PT-301']||0)*20]);if(hist.length>600)hist.shift();drawTrend();}
+function drawTrend(){const c=document.getElementById('tr'),g=c.getContext('2d');g.clearRect(0,0,c.width,c.height);g.strokeStyle='#243352';for(let y=0;y<=100;y+=25){g.beginPath();g.moveTo(0,c.height-y/100*c.height);g.lineTo(c.width,c.height-y/100*c.height);g.stroke();}
+ const cols=['#0EA5E9','#F59E0B','#22C55E'];for(let k=0;k<3;k++){g.strokeStyle=cols[k];g.lineWidth=1.5;g.beginPath();hist.forEach((p,i)=>{const x=i/600*c.width,y=c.height-Math.max(0,Math.min(100,p[k]))/100*c.height;i?g.lineTo(x,y):g.moveTo(x,y);});g.stroke();}}
+async function tick(){try{const r=await fetch('/api/state');render(await r.json());}catch(e){document.getElementById('links').innerHTML='<span><i class="dot"></i>HMI backend unreachable</span>';}}
+setInterval(tick,1000);tick();
+</script>
+</body>
+</html>
