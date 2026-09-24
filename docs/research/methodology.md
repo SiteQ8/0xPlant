@@ -42,3 +42,5 @@ A complete single-run campaign on the local lab is kept in [`research/results/sa
 ## Extending
 
 Add a `Scenario` to `research/run_experiments.py`: an action, an optional cleanup, the rule you expect and a timeout. Actions may use the fault API (`plant/faults.py`), the Modbus client bound to any loopback source address, the EWS tool or the MQTT client.
+
+The same faults can be tried interactively, without the lab, from the research controls of the [live demo](https://siteq8.github.io/0xPlant) and its [HMI](https://siteq8.github.io/0xPlant/hmi.html); the browser port of the detector applies the same rules, but latencies measured there are not comparable with the harness (no Modbus polling, no conduits).

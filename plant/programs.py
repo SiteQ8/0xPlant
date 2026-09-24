@@ -82,6 +82,11 @@ class Program:
     def remote_value(self, plc: str, tag: str, default: float) -> float:
         return self.remote.get(plc, {}).get(tag, default)
 
+    def measured(self, name: str, physical: float) -> float:
+        """What the control logic sees: the transmitter value published on the last scan (faults included),
+        or the physical state before anything has been published. A spoofed sensor therefore drives the PLC."""
+        return self.get(name) if self.scan > 1 else physical
+
     def noise(self, sigma: float) -> float:
         return self.rng.gauss(0.0, sigma)
 
@@ -183,18 +188,19 @@ class Intake(Program):
         self.clamp_setpoint("LALL_LIMIT", 2.0, start_sp - 2.0)
         self.clamp_setpoint("TURB_HIGH_LIMIT", 1.0, 200.0)
 
-        if self.reset_requested() and self.level < lahh_limit - 2.0:
+        level, turbidity = self.measured("LT-101", self.level), self.measured("AT-101", self.turbidity)
+        if self.reset_requested() and level < lahh_limit - 2.0:
             self.lahh = False
-        if self.level >= lahh_limit:
+        if level >= lahh_limit:
             self.lahh = True
 
         auto = self.coil("AUTO_MODE")
         if auto:
             self.consume("PUMP_START_CMD")   # manual commands are discarded in AUTO, never latched for later
             self.consume("PUMP_STOP_CMD")
-            if self.level < start_sp:
+            if level < start_sp:
                 self.pump_run = True
-            elif self.level > stop_sp:
+            elif level > stop_sp:
                 self.pump_run = False
             self.valve_open = self.pump_run
         else:
@@ -208,8 +214,8 @@ class Intake(Program):
         self.speed_cmd = speed_sp if self.pump_run else 0.0
 
         self.interlock_word = 1 if self.lahh else 0
-        self.alarm_word = (2 if self.turbidity > self.get("TURB_HIGH_LIMIT") else 0) | \
-                          (4 if self.level < self.get("LALL_LIMIT") else 0)
+        self.alarm_word = (2 if turbidity > self.get("TURB_HIGH_LIMIT") else 0) | \
+                          (4 if level < self.get("LALL_LIMIT") else 0)
 
     def physics(self, dt_h: float) -> None:
         self.speed_fb += (self.speed_cmd - self.speed_fb) * min(1.0, dt_h * 60.0)
@@ -331,9 +337,10 @@ class Treatment(Program):
         kp = self.clamp_setpoint("PI_KP", 0.1, 20.0)
         ti = self.clamp_setpoint("PI_TI", 5.0, 600.0)
 
-        if self.reset_requested() and self.residual < aahh - 0.5:
+        residual, dp, flow = self.measured("AT-201", self.residual), self.measured("PDT-201", self.dp), self.measured("FT-201", self.flow)
+        if self.reset_requested() and residual < aahh - 0.5:
             self.aahh = False
-        if self.residual >= aahh:
+        if residual >= aahh:
             self.aahh = True
 
         upstream_level = self.remote_value("PLC-001", "LT-101", 0.0)
@@ -349,24 +356,24 @@ class Treatment(Program):
 
         if self.consume("BACKWASH_CMD") and self.backwash_left <= 0:
             self.backwash_left = 0.1
-        if self.dp >= bw_sp and self.backwash_left <= 0:
+        if dp >= bw_sp and self.backwash_left <= 0:
             self.backwash_left = 0.1   # filter protection runs in AUTO and MANUAL alike
         backwash = self.backwash_left > 0
 
         start_cmd, stop_cmd = self.consume("PLANT_START_CMD"), self.consume("PLANT_STOP_CMD")
         if auto:
-            self._sequence(dt_h, start_cmd, stop_cmd, available, backwash)
+            self._sequence(dt_h, start_cmd, stop_cmd, available, flow)
             self.transfer_run = self.seq in (self.SEQ_FILL, self.SEQ_RUN) and available and not backwash and not self.clearwell_hold
         else:
             self.transfer_run = self.coil("TRANSFER_RUN_CMD") and available and not backwash
         self.flow_cmd = flow_sp if self.transfer_run else 0.0
 
-        dosing_wanted = self.flow > 5.0 and (not auto or self.seq == self.SEQ_RUN)
+        dosing_wanted = flow > 5.0 and (not auto or self.seq == self.SEQ_RUN)
         if auto:
             self.dosing_run = dosing_wanted and not self.aahh
             if self.dosing_run:
                 dt_s = dt_h * 3600.0
-                error = cl2_sp - self.residual
+                error = cl2_sp - residual
                 self.stroke += (kp * (error - self.prev_error) + kp / ti * error * dt_s) * 10.0
                 self.prev_error = error
                 self.stroke = max(0.0, min(max_stroke, self.stroke))
@@ -382,10 +389,10 @@ class Treatment(Program):
             self.prev_error = 0.0
 
         self.interlock_word = 1 if self.aahh else 0
-        low = self.dosing_run and self.residual < self.get("AALL_LIMIT")
-        self.alarm_word = (2 if low else 0) | (4 if self.dp > bw_sp * 0.9 else 0)
+        low = self.dosing_run and residual < self.get("AALL_LIMIT")
+        self.alarm_word = (2 if low else 0) | (4 if dp > bw_sp * 0.9 else 0)
 
-    def _sequence(self, dt_h: float, start: bool, stop: bool, available: bool, backwash: bool) -> None:
+    def _sequence(self, dt_h: float, start: bool, stop: bool, available: bool, flow: float) -> None:
         """Plant start/stop sequence (supervisor commands): STOPPED -> WAIT UPSTREAM -> FILL -> RUN -> STOP."""
         flow_sp = self.get("FLOW_SP")
         if stop and self.seq not in (self.SEQ_STOPPED, self.SEQ_STOP):
@@ -397,7 +404,7 @@ class Treatment(Program):
                 self.seq, self.seq_timer = self.SEQ_FILL, 0.0
         elif self.seq == self.SEQ_FILL:
             self.seq_timer += dt_h
-            if self.flow > 0.8 * flow_sp:
+            if flow > 0.8 * flow_sp:
                 self.seq, self.seq_timer = self.SEQ_RUN, 0.0
             elif self.seq_timer > 1.0:
                 self.seq = self.SEQ_HELD               # could not establish flow within one simulated hour
@@ -409,7 +416,7 @@ class Treatment(Program):
                 self.seq, self.seq_timer = self.SEQ_FILL, 0.0
         elif self.seq == self.SEQ_STOP:
             self.seq_timer += dt_h
-            if self.flow < 1.0 or self.seq_timer > 0.2:
+            if flow < 1.0 or self.seq_timer > 0.2:
                 self.seq = self.SEQ_STOPPED
 
     def physics(self, dt_h: float) -> None:
@@ -450,7 +457,7 @@ class Treatment(Program):
         self.set("DP_HIGH", self.alarm_word & 4)
         self.set("AUTO_ACTIVE", self.coil("AUTO_MODE"))
         self.set("REMOTE_OK_001", self.remote_ok.get("PLC-001", False))
-        self.set("TRANSFER_RUNNING", self.flow > 0.5)
+        self.set("TRANSFER_RUNNING", self.transfer_run)      # pump command state, not flow: the invariant checks flow
         self.set("REMOTE_OK_003", self.remote_ok.get("PLC-003", False))
         self.set("CLEARWELL_HOLD", self.clearwell_hold)
 
@@ -517,15 +524,16 @@ class Distribution(Program):
         lall = self.clamp_setpoint("LALL_LIMIT", 2.0, 40.0)
         max_speed = self.clamp_setpoint("MAX_SPEED", 30.0, 100.0)
         self.clamp_setpoint("PALL_LIMIT", 0.5, sp - 0.5)
+        level, pressure = self.measured("LT-301", self.level), self.measured("PT-301", self.pressure)
 
         if self.reset_requested():
-            if self.level > lall + 5.0:
+            if level > lall + 5.0:
                 self.lall = False
-            if self.pressure < pahh - 0.5:
+            if pressure < pahh - 0.5:
                 self.pahh = False
-        if self.level <= lall:
+        if level <= lall:
             self.lall = True
-        if self.pressure >= pahh:
+        if pressure >= pahh:
             self.pahh = True
         tripped = self.lall or self.pahh
 
@@ -533,13 +541,13 @@ class Distribution(Program):
         if auto:
             self.consume("STOP_ALL_CMD")
             self.run[0] = not tripped
-            error = sp - self.pressure
+            error = sp - pressure
             dt_s = dt_h * 3600.0
             self.integral = max(-50.0, min(50.0, self.integral + error * dt_s * 0.05))
             self.speed_cmd = max(0.0, min(max_speed, 70.0 + error * 25.0 + self.integral))
-            if self.pressure < sp - delta and self.run[0]:
+            if pressure < sp - delta and self.run[0]:
                 self.lag_timer += 1
-            elif self.pressure >= sp - delta / 4 and self.demand < self.PUMP_M3H * 0.8:
+            elif pressure >= sp - delta / 4 and self.demand < self.PUMP_M3H * 0.8:
                 self.lag_timer -= 1   # one pump covers the demand with 20% margin: the lag pump can drop out
             self.lag_timer = max(-40, min(10, self.lag_timer))
             if self.lag_timer >= 10:
@@ -562,7 +570,7 @@ class Distribution(Program):
             self.run[1] = False
 
         self.interlock_word = (1 if self.lall else 0) | (2 if self.pahh else 0)
-        self.alarm_word = 4 if (self.pressure < self.get("PALL_LIMIT") and any(self.run)) else 0
+        self.alarm_word = 4 if (pressure < self.get("PALL_LIMIT") and any(self.run)) else 0
 
     def physics(self, dt_h: float) -> None:
         hour = self.sim_hours % 24

@@ -42,3 +42,9 @@ The plant runs `time_scale` times faster than real time (60× by default): one r
 * The PLCs trust nothing about the network: they clamp setpoints to engineering limits and reject writes outside the operator and engineering regions themselves.
 * Conduits are the only path from Level 2/3 into Level 1 (enforced by Docker networks in the compose lab, by loopback address plan locally).
 * The fault-injection API is testbed instrumentation. It is bound to the management interface and is not reachable through a conduit; in a real deployment it would not exist.
+
+## Browser testbed
+
+The plant physics and PLC programs also exist as a JavaScript port (`plant/plantsim.js`) that is parity-tested against the Python programs (`tests/test_browser_plant.py`: 1200 scans, every process value within 2 %). On top of it, `plant/hmi_demo.js` implements the HMI's HTTP API (alarm manager, historian, sessions, roles) and `oxplant/ui_live.js` implements the integrity monitor rules (OXP-005/006/007/012/013/018, including the invariant expression language). The published demo therefore runs a real control system and a real detector in the browser; it is useful for teaching and for quick what-if experiments, while measured results should come from the Python lab where traffic really crosses the conduits.
+
+The PLC logic, in both implementations, acts on the transmitter values it published on the previous scan rather than on the physical state. A frozen or spoofed sensor therefore misleads the controller exactly as it would on a real PLC (a +2.5 bar offset on PT-301 trips the high-high interlock and stops the high-lift pumps), which is what makes sensor-integrity attacks worth detecting from the network side.

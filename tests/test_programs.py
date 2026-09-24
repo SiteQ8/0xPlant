@@ -74,7 +74,8 @@ def test_treatment_high_high_chlorine_interlock_stops_dosing():
     for _ in range(50):
         p.execute(DT)
     p.residual = 4.5
-    p.execute(DT)
+    p.execute(DT)          # the analyser publishes the new residual
+    p.execute(DT)          # the logic acts on the measured value on the next scan
     assert p.aahh and not p.dosing_run and p.get("AAHH_TRIP") == 1
 
 

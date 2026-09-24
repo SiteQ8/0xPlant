@@ -56,7 +56,7 @@ a { color: var(--green2); }
 .side-item .cnt { font-family: var(--mono); font-size: .62rem; background: #1E293B; color: #CBD5E1; padding: 1px 7px; border-radius: 10px; min-width: 18px; text-align: center; }
 .side-item .cnt:empty { display: none } .side-item .cnt.red { background: var(--red); color: #fff; }
 .side-footer { margin-top: auto; padding: 14px 18px; border-top: 1px solid #1E293B; font-size: .68rem; color: #64748B; line-height: 1.6; } .side-footer a { color: var(--green); text-decoration: none; }
-.main-wrap { margin-left: 244px; flex: 1; min-height: 100vh; }
+.main-wrap { margin-left: 244px; flex: 1; min-width: 0; min-height: 100vh; }
 .topbar { background: var(--white); border-bottom: 1px solid var(--border); padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; gap: 14px; }
 .topbar-title { font-weight: 700; font-size: 1.02rem; white-space: nowrap; }
 .topbar-right { display: flex; align-items: center; gap: 10px; }
@@ -72,11 +72,12 @@ a { color: var(--green2); }
 @keyframes fade { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: none } }
 .page-head { margin-bottom: 18px; display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; flex-wrap: wrap; } .page-head h2 { font-size: 1.3rem; font-weight: 700; } .page-head p { font-size: .82rem; color: var(--text3); margin-top: 2px; }
 /* ---------- widgets ---------- */
-.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 18px; }
 .metric { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 16px 12px; box-shadow: var(--shadow); position: relative; overflow: hidden; transition: transform .15s; } .metric:hover { transform: translateY(-2px) }
 .metric-val { font-family: var(--mono); font-size: 1.7rem; font-weight: 700; line-height: 1.1; } .metric-label { font-size: .7rem; color: var(--text3); text-transform: uppercase; letter-spacing: .6px; margin-top: 4px; } .metric-change { font-size: .74rem; margin-top: 6px; color: var(--text2); }
 .metric canvas.spark { position: absolute; right: 10px; top: 12px; width: 90px; height: 34px; opacity: .9; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; } .grid21 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+.grid2 > *, .grid3 > *, .grid21 > * { min-width: 0; }
 @media (max-width: 1200px) { .grid2, .grid3, .grid21 { grid-template-columns: 1fr; } }
 .card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; box-shadow: var(--shadow); }
 .card-title { font-weight: 700; font-size: .92rem; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; } .card-title small { color: var(--text3); font-weight: 400; font-family: var(--mono); font-size: .68rem; }
@@ -118,6 +119,15 @@ pre { font-family: var(--mono); font-size: .72rem; background: #0F172A; color: #
 #toast.crit { border-left-color: var(--red) }
 .donut-wrap { display: flex; align-items: center; gap: 18px; } .donut-wrap canvas { width: 130px; height: 130px } .donut-legend div { font-size: .78rem; margin: 4px 0; display: flex; gap: 8px; align-items: center } .donut-legend b { font-family: var(--mono) } .donut-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block }
 canvas.chart { width: 100%; height: 170px; display: block; }
+/* dashboard widgets */
+svg.plant { width: 100%; height: auto; display: block; font-family: var(--mono); } svg.plant .node { cursor: pointer } svg.plant .node:hover rect { opacity: .35 }
+.pflow { stroke-dasharray: 5 7; animation: dash 1s linear infinite; }
+table.plain td { padding: 5px 4px; font-size: .78rem; } table.plain tr:last-child td { border-bottom: none }
+.zones-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-bottom: 16px; }
+.zone-tile { background: var(--white); border: 1px solid var(--border); border-top: 4px solid var(--green); border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow); }
+.zt-name { font-weight: 700; font-size: .84rem; } .zt-row { display: flex; justify-content: space-between; align-items: center; font-size: .74rem; color: var(--text2); margin-top: 6px; font-family: var(--mono); } .zt-cond { margin-top: 8px; }
+table.heat th { text-align: center; font-size: .56rem; padding: 6px 4px; } table.heat th:first-child { text-align: left } table.heat td.cell { text-align: center; font-family: var(--mono); font-size: .72rem; border-left: 1px solid var(--border); } table.heat td { padding: 6px 6px }
+.card.research { border-color: var(--purple); background: color-mix(in srgb, var(--purple) 5%, var(--white)); } .card.research .card-title small { color: var(--purple) } .card.research button.act { margin-bottom: 4px }
 .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; } .kv div { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: .76rem } .kv b { display: block; font-family: var(--mono); font-size: .66rem; color: var(--text3); text-transform: uppercase; margin-bottom: 2px }
 @media (max-width: 900px) { .side { display: none } .main-wrap { margin-left: 0 } .search { display: none } }
 </style>
@@ -187,6 +197,8 @@ canvas.chart { width: 100%; height: 170px; display: block; }
 <div class="drawer" id="drawer"><div class="drawer-head"><h3 id="drawerTitle">Details</h3><button class="iconbtn" id="drawerClose">✕</button></div><div class="drawer-body" id="drawerBody"></div></div>
 <div id="toast"></div>
 <script src="demo-data.js"></script>
+<script src="plantsim.js"></script>
+<script src="app-live.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

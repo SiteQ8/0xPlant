@@ -19,6 +19,11 @@
 
   // ---------------- demo mode (GitHub Pages): replay a dataset captured from a real lab run ----------------
   const DEMO = window.OXP_DEMO || null;
+  const LIVE = () => window.OXP_LIVE || null;
+  if (DEMO) {   // shift the captured dataset to "now" so the demo reads like a running site
+    const off = Date.now() / 1000 - (DEMO.summary.now || Date.now() / 1000), keys = new Set(['ts', 'first_ts', 'last_ts', 'ack_ts', 'resolved_ts', 'reviewed_ts', 'first_seen', 'last_seen', 'now']);
+    (function shift(o) { if (Array.isArray(o)) o.forEach(shift); else if (o && typeof o === 'object') Object.keys(o).forEach((k) => { if (keys.has(k) && typeof o[k] === 'number') o[k] += off; else shift(o[k]); }); })(DEMO);
+  }
   function demoApi(path, body) {
     const [route, qs] = path.split('?'); const q = Object.fromEntries(new URLSearchParams(qs || ''));
     const D = DEMO; const fail = (m) => { throw new Error(m); };
@@ -28,11 +33,12 @@
     if (route === '/api/logout') { D.session = null; return { ok: true }; }
     if (!D.session) { showLogin(); fail('unauthenticated'); }
     const open = () => D.alerts.filter((a) => a.status === 'active' || a.status === 'acknowledged');
-    if (route === '/api/summary') { const o = open(); const s = JSON.parse(JSON.stringify(D.summary)); s.now = Date.now() / 1000; s.alerts = { critical: o.filter((a) => a.severity === 'critical').length, warning: o.filter((a) => a.severity === 'warning').length, info: o.filter((a) => a.severity === 'info').length, resolved_7d: D.alerts.filter((a) => a.status === 'resolved').length }; s.recent = D.events.slice(0, 8); s.assets.rogue = D.assets.filter((a) => !a.approved).length; return s; }
+    if (route === '/api/summary') { const o = open(); const s = JSON.parse(JSON.stringify(D.summary)); const t = Date.now() / 1000; s.now = t; s.alerts = { critical: o.filter((a) => a.severity === 'critical').length, warning: o.filter((a) => a.severity === 'warning').length, info: o.filter((a) => a.severity === 'info').length, resolved_7d: D.alerts.filter((a) => a.status === 'resolved').length }; s.recent = D.events.slice(0, 8); s.assets.rogue = D.assets.filter((a) => !a.approved).length; s.assets.online = D.assets.filter((a) => a.status === 'online').length; s.assets.offline = D.assets.filter((a) => a.status === 'offline').length; const day = D.events.filter((e) => t - e.ts < 86400); s.events_24h = { total: day.length, critical: day.filter((e) => e.severity === 'critical').length, warning: day.filter((e) => e.severity === 'warning').length, info: day.filter((e) => e.severity === 'info').length }; s.sensors.forEach((x) => { x.last_seen = t - 2; }); if (LIVE()) s.process = LIVE().summary(); return s; }
     if (route === '/api/events') return D.events.filter((e) => (!q.severity || e.severity === q.severity) && (!q.category || e.category === q.category)).slice(0, +(q.limit || 200));
     if (route === '/api/alerts') return (q.status === 'open' ? open() : q.status ? D.alerts.filter((a) => a.status === q.status) : D.alerts).slice(0, +(q.limit || 200));
     if (route === '/api/changes') return (q.status ? D.changes.filter((c) => c.status === q.status) : D.changes).slice(0, +(q.limit || 200));
-    if (route === '/api/process') { D._p = ((D._p || 0) + 1) % D.process.length; const snap = JSON.parse(JSON.stringify(D.process[D._p])); Object.values(snap).forEach((v) => { v.ts = Date.now() / 1000; }); return snap; }
+    if (route === '/api/process') { if (LIVE()) return JSON.parse(JSON.stringify(LIVE().process())); D._p = ((D._p || 0) + 1) % D.process.length; const snap = JSON.parse(JSON.stringify(D.process[D._p])); Object.values(snap).forEach((v) => { v.ts = Date.now() / 1000; }); return snap; }
+    if (route === '/api/demo/fault') { const L = LIVE(); if (!L) fail('live plant not loaded'); const b = body || {}; if (b.type === 'engineering_write') return L.engineeringWrite(b.plc, b.tag, b.value); if (b.type === 'operator_write') return L.operatorWrite(b.plc, b.tag, b.value); if (b.type === 'clear_all') { Object.keys(L.sim.plcs).forEach((p) => L.fault(p, { type: 'clear' })); return { ok: true }; } audit(D.session.username, 'research.fault', `${b.plc} ${b.type} ${b.tag || ''}`); return L.fault(b.plc, b); }
     if (route === '/api/audit') return { total: D.audit.entries.length, entries: D.audit.entries.slice(0, +(q.limit || 200)) };
     const m = route.match(/^\/api\/(alerts|changes|assets)\/([^/]+)\/(ack|resolve|approve|reject|unapprove)$/);
     if (m) {
@@ -40,7 +46,7 @@
       const need = { ack: ['admin', 'engineer', 'soc'], resolve: ['admin', 'soc'], approve: ['admin', 'engineer'], reject: ['admin', 'engineer'], unapprove: ['admin', 'engineer'] }[action];
       if (!need.includes(me.role)) { audit(me.username, 'denied', route); fail(`role ${me.role} lacks permission for ${action}`); }
       if (kind === 'alerts') { const a = D.alerts.find((x) => String(x.id) === id); if (!a) return { ok: false }; if (action === 'ack' && a.status === 'active') { a.status = 'acknowledged'; a.ack_by = me.username; a.ack_ts = Date.now() / 1000; } else if (action === 'resolve' && a.status !== 'resolved') { a.status = 'resolved'; a.resolved_ts = Date.now() / 1000; a.ack_by = a.ack_by || me.username; } else return { ok: false }; audit(me.username, 'alert.' + action, 'alert:' + id); return { ok: true }; }
-      if (kind === 'changes') { const c = D.changes.find((x) => String(x.id) === id); if (!c || c.status !== 'unreviewed') return { ok: false }; c.status = action === 'approve' ? 'approved' : 'rejected'; c.reviewed_by = me.username; c.reviewed_ts = Date.now() / 1000; c.ticket = (body && body.ticket) || ''; if (c.status === 'approved') { D.alerts.filter((a) => a.rule === 'OXP-006' && a.asset === c.asset && a.title.includes(c.tag) && a.status !== 'resolved').forEach((a) => { a.status = 'resolved'; a.resolved_ts = Date.now() / 1000; a.ack_by = 'system'; }); D.process.forEach((snap) => { const t = snap[c.asset] && snap[c.asset].tags[c.tag]; if (t) { t.golden = c.new_value; t.status = 'ok'; } }); } audit(me.username, 'change.' + action, `change:${id} ${c.asset}/${c.tag}`); return { ok: true }; }
+      if (kind === 'changes') { const c = D.changes.find((x) => String(x.id) === id); if (!c || c.status !== 'unreviewed') return { ok: false }; c.status = action === 'approve' ? 'approved' : 'rejected'; c.reviewed_by = me.username; c.reviewed_ts = Date.now() / 1000; c.ticket = (body && body.ticket) || ''; if (c.status === 'approved') { D.alerts.filter((a) => a.rule === 'OXP-006' && a.asset === c.asset && a.title.includes(c.tag) && a.status !== 'resolved').forEach((a) => { a.status = 'resolved'; a.resolved_ts = Date.now() / 1000; a.ack_by = 'system'; }); D.process.forEach((snap) => { const t = snap[c.asset] && snap[c.asset].tags[c.tag]; if (t) { t.golden = c.new_value; t.status = 'ok'; } }); if (LIVE()) LIVE().setGolden(c.asset, c.tag, c.new_value); } audit(me.username, 'change.' + action, `change:${id} ${c.asset}/${c.tag}`); return { ok: true }; }
       const a = D.assets.find((x) => x.id === id); if (!a) return { ok: false }; a.approved = action === 'approve'; if (a.approved) D.alerts.filter((x) => x.rule === 'OXP-009' && x.source_ip === a.ip && x.status !== 'resolved').forEach((x) => { x.status = 'resolved'; x.resolved_ts = Date.now() / 1000; }); audit(me.username, 'asset.' + action, id); return { ok: true };
     }
     const key = route.replace('/api/', ''); if (D[key] !== undefined) return D[key];
@@ -78,12 +84,14 @@
   document.body.addEventListener('click', (e) => {
     const th = e.target.closest('th[data-col]');
     if (th) { const key = th.closest('table').dataset.key, col = +th.dataset.col; const cur = S.sort[key]; S.sort[key] = cur && cur.col === col ? { col, asc: !cur.asc } : { col, asc: true }; refresh(); return; }
+    const lv = e.target.closest('[data-live]');
+    if (lv) { e.stopPropagation(); return act('/api/demo/fault', JSON.parse(lv.dataset.live), lv.dataset.msg); }
     const b = e.target.closest('[data-act]');
     if (b) { e.stopPropagation(); const [path, msg] = [b.dataset.act, b.dataset.msg]; if (b.dataset.ticket !== undefined) { const t = prompt('Change ticket / CAB reference (optional):', ''); if (t === null) return; return act(path, { ticket: t }, msg); } return act(path, {}, msg); }
     const row = e.target.closest('[data-drawer]');
     if (row) { const item = (S.cache[row.dataset.drawer] || [])[+row.dataset.idx]; if (item) openDrawer(row.dataset.drawer, item); return; }
-    const node = e.target.closest('.node[data-asset]');
-    if (node) { const a = (S.cache.assets || []).find((x) => x.id === node.dataset.asset); if (a) openDrawer('assets', a); }
+    const node = e.target.closest('.node[data-asset], [data-plant-asset]');
+    if (node) { const id = node.dataset.asset || node.dataset.plantAsset; const a = (S.cache.assets || []).find((x) => x.id === id); if (a) openDrawer('assets', a); }
   });
   document.body.addEventListener('change', (e) => { if (e.target.dataset.filter) { S.filters[e.target.dataset.filter] = e.target.value; refresh(); } });
   $('search').addEventListener('input', (e) => { S.search = e.target.value.trim().toLowerCase(); refresh(); });
@@ -177,13 +185,86 @@
 
   // ---------------- pages ----------------
   const P = {};
+  // ---------------- dashboard widgets ----------------
+  const tagVal = (live, asset, tag) => { const t = live && live[asset] && live[asset].tags && live[asset].tags[tag]; return t && t.value != null ? t.value : null; };
+  function plantOverviewSvg(live) {
+    const st = (a) => live[a] || { online: false, tags: {} };
+    const exc = (a) => Object.values(st(a).tags || {}).filter((t) => t.status !== 'ok').length;
+    const badge = (a, x) => { const s = st(a); const col = !s.online ? css('--red') : exc(a) ? css('--amber') : css('--green'); return `<g class="node" data-asset="${esc(a)}"><rect x="${x}" y="8" width="118" height="22" rx="6" fill="${col}" opacity=".15" stroke="${col}"/><circle cx="${x + 12}" cy="19" r="4" fill="${col}"/><text x="${x + 22}" y="23" font-size="11" font-weight="700" fill="${css('--text')}">${esc(a)}</text><text x="${x + 112}" y="23" font-size="9" text-anchor="end" fill="${css('--text2')}">${!s.online ? 'OFFLINE' : exc(a) ? exc(a) + ' EXC' : 'OK'}</text></g>`; };
+    const lvl = (v) => Math.max(0, Math.min(100, v == null ? 0 : v));
+    const tank = (x, y, w, h, level, name, text) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${css('--bg')}" stroke="${css('--border2')}"/><rect x="${x + 1}" y="${y + h - 1 - (h - 2) * lvl(level) / 100}" width="${w - 2}" height="${(h - 2) * lvl(level) / 100}" fill="${css('--cyan')}" opacity=".55"/><text x="${x + w / 2}" y="${y + h + 13}" font-size="9" text-anchor="middle" fill="${css('--text3')}">${name}</text><text x="${x + w / 2}" y="${y + h / 2 + 4}" font-size="11" font-weight="700" text-anchor="middle" fill="${css('--text')}">${text}</text>`;
+    const pump = (x, y, on, name) => `<circle cx="${x}" cy="${y}" r="11" fill="${on ? css('--green') : css('--border2')}" opacity="${on ? '.9' : '.7'}"/><path d="M${x} ${y - 7}V${y + 7}M${x - 7} ${y}H${x + 7}" stroke="#fff" stroke-width="1.6"/><text x="${x}" y="${y + 24}" font-size="9" text-anchor="middle" fill="${css('--text3')}">${name}</text>`;
+    const pipe = (d, on) => `<path d="${d}" stroke="${css('--border2')}" stroke-width="4" fill="none" stroke-linecap="round"/>${on ? `<path d="${d}" class="pflow" stroke="${css('--cyan')}" stroke-width="2.2" fill="none" stroke-linecap="round"/>` : ''}`;
+    const val = (x, y, label, v, unit, d = 1) => `<text x="${x}" y="${y}" font-size="9" fill="${css('--text3')}">${label}</text><text x="${x}" y="${y + 13}" font-size="12" font-weight="700" fill="${css('--text')}">${num(v, d)}<tspan font-size="9" font-weight="400" fill="${css('--text3')}"> ${unit}</tspan></text>`;
+    const l1 = tagVal(live, 'PLC-001', 'LT-101'), f1 = tagVal(live, 'PLC-001', 'FT-101'), sc1 = tagVal(live, 'PLC-001', 'SC-101'), tu = tagVal(live, 'PLC-001', 'AT-101');
+    const f2 = tagVal(live, 'PLC-002', 'FT-201'), cl = tagVal(live, 'PLC-002', 'AT-201'), dp = tagVal(live, 'PLC-002', 'PDT-201'), sc2 = tagVal(live, 'PLC-002', 'SC-201'), tr = tagVal(live, 'PLC-002', 'TRANSFER_RUNNING');
+    const l3 = tagVal(live, 'PLC-003', 'LT-301'), pt = tagVal(live, 'PLC-003', 'PT-301'), f3 = tagVal(live, 'PLC-003', 'FT-301');
+    return `<svg class="plant" viewBox="0 0 900 190" role="img" aria-label="plant overview">
+      ${badge('PLC-001', 8)}${badge('PLC-002', 330)}${badge('PLC-003', 640)}
+      ${pipe('M14 90 H60', f1 > 1)}${pump(74, 90, sc1 > 0 || f1 > 1, 'P-101')}${pipe('M88 90 H130 V70', f1 > 1)}${tank(110, 60, 60, 80, l1, 'T-101 intake', num(l1, 1) + '%')}
+      ${val(190, 68, 'FT-101 raw water', f1, 'm3/h', 0)}${val(190, 100, 'AT-101 turbidity', tu, 'NTU')}${val(190, 132, 'SC-101 speed', sc1, '%', 0)}
+      ${pipe('M170 120 H300 V90 H340', f2 > 1)}${pump(354, 90, tr || f2 > 1, 'P-202')}${pipe('M368 90 H400', f2 > 1)}
+      <rect x="400" y="70" width="50" height="40" rx="4" fill="${css('--bg')}" stroke="${css('--border2')}"/><text x="425" y="88" font-size="9" text-anchor="middle" fill="${css('--text3')}">F-201</text><text x="425" y="102" font-size="11" font-weight="700" text-anchor="middle" fill="${css('--text')}">${num(dp, 0)} kPa</text>
+      ${pump(475, 52, sc2 > 0, 'P-201 Cl2')}${pipe('M475 63 V90', sc2 > 0)}${pipe('M450 90 H520', f2 > 1)}
+      ${val(530, 68, 'FT-201 treated', f2, 'm3/h', 0)}${val(530, 100, 'AT-201 chlorine', cl, 'mg/L', 2)}${val(530, 132, 'SC-201 dosing stroke', sc2, '%', 0)}
+      ${pipe('M520 90 H640 V70', f2 > 1)}${tank(640, 60, 60, 80, l3, 'T-301 clearwell', num(l3, 1) + '%')}${pipe('M700 120 H740 V90 H770', f3 > 1)}${pump(784, 90, f3 > 1, 'P-301/302')}${pipe('M798 90 H840', f3 > 1)}
+      ${val(720, 132, 'FT-301 to network', f3, 'm3/h', 0)}${val(810, 68, 'PT-301', pt, 'bar', 2)}<text x="850" y="96" font-size="9" fill="${css('--text3')}">NETWORK</text>
+    </svg>`;
+  }
+  function postureScore(s, alerts, assets, changes, live) {
+    const open = alerts.filter((a) => a.status !== 'resolved');
+    const items = [
+      ['Critical alerts open', open.filter((a) => a.severity === 'critical').length, 8, 40],
+      ['Warnings open', open.filter((a) => a.severity === 'warning').length, 3, 15],
+      ['Unapproved (rogue) devices', assets.filter((a) => !a.approved).length, 10, 30],
+      ['Assets offline', assets.filter((a) => a.status === 'offline').length, 5, 20],
+      ['Config changes awaiting review', changes.filter((c) => c.status === 'unreviewed').length, 3, 15],
+      ['Invariants violated', Object.values(live).reduce((n, v) => n + Object.values(v.invariants || {}).filter((i) => i.status === 'violated').length, 0), 5, 20],
+      ['Sensors silent > 60 s', s.sensors.filter((x) => Date.now() / 1000 - x.last_seen > 60).length, 8, 16]];
+    let score = 100; const rows = items.map(([label, n, w, cap]) => { const pen = Math.min(cap, n * w); score -= pen; return { label, n, pen }; });
+    score = Math.max(0, Math.round(score));
+    const grade = score >= 90 ? 'A' : score >= 75 ? 'B' : score >= 60 ? 'C' : score >= 40 ? 'D' : 'F';
+    return { score, grade, rows };
+  }
+  function arcGauge(c, score, label) {
+    if (!c) return; const [g, w, h] = ctx2d(c); const cx = w / 2, cy = h - 12, r = Math.min(w / 2, h) - 14;
+    const col = score >= 75 ? css('--green') : score >= 50 ? css('--amber') : css('--red');
+    g.lineWidth = 14; g.lineCap = 'round'; g.beginPath(); g.arc(cx, cy, r, Math.PI, 2 * Math.PI); g.strokeStyle = css('--border'); g.stroke();
+    if (score > 0) { g.beginPath(); g.arc(cx, cy, r, Math.PI, Math.PI + Math.PI * score / 100); g.strokeStyle = col; g.stroke(); }
+    g.fillStyle = css('--text'); g.font = `700 30px ${css('--mono')}`; g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillText(String(score), cx, cy - 6);
+    g.font = `11px ${css('--sans')}`; g.fillStyle = css('--text3'); g.fillText(label, cx, cy + 10);
+  }
+  function alertTimeline(c, alerts, minutes = 60) {
+    if (!c) return; const [g, w, h] = ctx2d(c); const now = Date.now() / 1000, t0 = now - minutes * 60; const pad = { l: 70, r: 10, t: 8, b: 18 };
+    const lanes = ['critical', 'warning', 'info']; const y = (i) => pad.t + (i + .5) * (h - pad.t - pad.b) / lanes.length; const x = (t) => pad.l + Math.max(0, Math.min(1, (t - t0) / (now - t0))) * (w - pad.l - pad.r);
+    g.font = `10px ${css('--mono')}`; g.textBaseline = 'middle';
+    lanes.forEach((l, i) => { g.strokeStyle = css('--border'); g.beginPath(); g.moveTo(pad.l, y(i)); g.lineTo(w - pad.r, y(i)); g.stroke(); g.fillStyle = css('--text3'); g.textAlign = 'right'; g.fillText(l, pad.l - 8, y(i)); });
+    g.textAlign = 'center'; g.textBaseline = 'alphabetic'; for (let k = 0; k <= 4; k++) { const t = t0 + (now - t0) * k / 4; g.fillStyle = css('--text3'); g.fillText(k === 4 ? 'now' : `-${Math.round(minutes * (4 - k) / 4)} min`, x(t), h - 4); }
+    alerts.forEach((a) => { if (a.last_ts < t0 && a.first_ts < t0) return; const i = lanes.indexOf(a.severity); if (i < 0) return; const col = sevColor(a.severity);
+      if (a.count > 1 || a.status === 'resolved') { g.strokeStyle = col; g.globalAlpha = .35; g.lineWidth = 6; g.beginPath(); g.moveTo(x(Math.max(t0, a.first_ts)), y(i)); g.lineTo(x(a.status === 'resolved' && a.resolved_ts ? a.resolved_ts : a.last_ts), y(i)); g.stroke(); g.globalAlpha = 1; }
+      g.fillStyle = a.status === 'resolved' ? css('--text3') : col; g.beginPath(); g.arc(x(a.last_ts), y(i), a.status === 'active' ? 5 : 3.5, 0, Math.PI * 2); g.fill();
+      if (a.status === 'active') { g.strokeStyle = col; g.lineWidth = 1.5; g.globalAlpha = .4; g.beginPath(); g.arc(x(a.last_ts), y(i), 9, 0, Math.PI * 2); g.stroke(); g.globalAlpha = 1; } });
+  }
+  function fcHeatmap(flows) {
+    const rows = {}; flows.forEach((f) => { const k = f.source_asset || f.source_ip; const r = rows[k] = rows[k] || { name: k, ip: f.source_ip, requests: 0, denied: 0, fn: {} }; r.requests += f.requests; r.denied += f.denied; Object.entries(f.functions || {}).forEach(([fn, n]) => { r.fn[fn] = (r.fn[fn] || 0) + n; }); });
+    const list = Object.values(rows).sort((a, b) => b.requests - a.requests).slice(0, 12);
+    const totals = {}; list.forEach((r) => Object.entries(r.fn).forEach(([fn, n]) => { totals[fn] = (totals[fn] || 0) + n; }));
+    const cols = Object.entries(totals).sort((a, b) => b[1] - a[1]).slice(0, 10).map((x) => x[0]); const max = Math.max(1, ...list.flatMap((r) => Object.values(r.fn)));
+    if (!list.length) return '<div class="empty">No conversations observed yet.</div>';
+    return `<div style="overflow-x:auto"><table class="heat"><thead><tr><th>Source</th>${cols.map((c) => `<th title="${esc(c)}">${esc(c.replace(/^READ_/, 'R ').replace(/^WRITE_/, 'W ').replace(/_REGISTERS?$/, ' REG').replace(/_INPUTS?$/, ' IN'))}</th>`).join('')}<th>Blocked</th></tr></thead><tbody>${list.map((r) => `<tr><td><b>${esc(r.name)}</b><br><span class="mono muted">${esc(r.ip)}</span></td>${cols.map((c) => { const n = r.fn[c] || 0; const a = n ? .12 + .7 * Math.log(1 + n) / Math.log(1 + max) : 0; return `<td class="cell" style="background:${n ? `color-mix(in srgb, var(--green) ${Math.round(a * 100)}%, transparent)` : 'transparent'}">${n || '<span class="muted">·</span>'}</td>`; }).join('')}<td>${r.denied ? `<span class="badge b-red">${r.denied}</span>` : '<span class="muted">0</span>'}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+
   P.dashboard = async () => {
-    const [s, ev] = await Promise.all([api('/api/summary'), api('/api/events?limit=600')]);
-    $('ver').textContent = 'v' + s.version + ' · ' + s.site; S.cache.events = s.recent; S.cache.rules = S.cache.rules || await api('/api/rules');
+    const [s, ev, flows, live, alerts, changes, assets] = await Promise.all([api('/api/summary'), api('/api/events?limit=600'), api('/api/flows'), api('/api/process'), api('/api/alerts?limit=200'), api('/api/changes?limit=100'), api('/api/assets')]);
+    $('ver').textContent = 'v' + s.version + ' · ' + s.site; S.cache.events = s.recent; S.cache.assets = assets; S.cache.openAlerts = alerts.filter((a) => a.status !== 'resolved'); S.cache.rules = S.cache.rules || await api('/api/rules');
     const buckets = bucketEvents(ev), blocked = s.conduits.reduce((a, c) => a + c.denied, 0), inspected = s.conduits.reduce((a, c) => a + c.requests, 0);
     const types = Object.entries(s.assets.by_type).sort((a, b) => b[1].count - a[1].count);
+    const posture = postureScore(s, alerts, assets, changes, live);
+    const invs = Object.entries(live).flatMap(([asset, v]) => Object.entries(v.invariants || {}).map(([n, i]) => [asset, n, i]));
+    const zones = (s.zones || []).slice().sort((a, b) => b.level - a.level);
     $('pg-dashboard').innerHTML = `
       <div class="metrics">
+        <div class="metric"><div class="metric-val" style="color:${posture.score >= 75 ? 'var(--green2)' : posture.score >= 50 ? 'var(--amber)' : 'var(--red)'}">${posture.score}<small style="font-size:.9rem;color:var(--text3)"> /100 · ${posture.grade}</small></div><div class="metric-label">Security posture</div><div class="metric-change">${posture.rows.filter((r) => r.pen).map((r) => `${r.n} ${r.label.toLowerCase()}`).slice(0, 2).join(' · ') || 'no open findings'}</div><canvas class="spark" id="sp-posture"></canvas></div>
         <div class="metric"><div class="metric-val" style="color:var(--green2)">${s.assets.total}</div><div class="metric-label">Assets</div><div class="metric-change">${s.assets.online} online · ${s.assets.offline} offline${s.assets.rogue ? ` · <b style="color:var(--red)">${s.assets.rogue} unapproved</b>` : ''}</div><canvas class="spark" id="sp-assets"></canvas></div>
         <div class="metric"><div class="metric-val" style="color:var(--red)">${s.alerts.critical}</div><div class="metric-label">Critical alerts</div><div class="metric-change">${s.alerts.warning} warning · ${s.alerts.resolved_7d} resolved (7d)</div><canvas class="spark" id="sp-crit"></canvas></div>
         <div class="metric"><div class="metric-val" style="color:var(--blue)">${s.events_24h.total || 0}</div><div class="metric-label">Events (24h)</div><div class="metric-change">${s.events_24h.critical || 0} critical · ${s.events_24h.warning || 0} warning</div><canvas class="spark" id="sp-ev"></canvas></div>
@@ -191,20 +272,32 @@
         <div class="metric"><div class="metric-val" style="color:var(--purple)">${s.sensors.length}</div><div class="metric-label">Sensors</div><div class="metric-change">${s.sensors.map((x) => `${esc(x.name)} ${ago(x.last_seen)}`).join(', ') || 'none reporting'}</div></div>
       </div>
       <div class="grid21">
+        <div class="card"><div class="card-title">Plant overview <small>read-only integrity polling through the conduits · click a PLC</small></div>${plantOverviewSvg(live)}<table class="plain" style="margin-top:10px">${Object.entries(live).sort().map(([asset, v]) => { const exc = Object.entries(v.tags || {}).filter(([, t]) => t.status !== 'ok'); const bad = Object.entries(v.invariants || {}).filter(([, i]) => i.status === 'violated'); return `<tr class="click" data-plant-asset="${esc(asset)}"><td><b class="mono">${esc(asset)}</b></td><td class="muted">${v.identity ? esc(`${v.identity.ModelName} · ${v.identity.UserApplicationName} · rev ${v.identity.MajorMinorRevision}`) : 'identity not read'}</td><td>${statusBadge(v.online ? 'online' : 'offline')}</td><td>${exc.length ? exc.map(([n, t]) => `<span class="badge ${t.status === 'drift' ? 'b-amber' : 'b-red'}">${esc(n)} ${esc(t.status)}</span> `).join('') : '<span class="badge b-green">envelopes ok</span>'}</td><td>${bad.length ? bad.map(([n]) => `<span class="badge b-red">${esc(n)}</span> `).join('') : Object.keys(v.invariants || {}).length ? '<span class="badge b-green">physics ok</span>' : ''}</td><td class="mono muted" style="text-align:right">${ago(v.ts)}</td></tr>`; }).join('')}</table></div>
+        <div class="card"><div class="card-title">Security posture <small>100 minus weighted open findings</small></div><canvas id="gauge-posture" style="width:100%;height:120px;display:block"></canvas><table class="plain">${posture.rows.map((r) => `<tr><td>${esc(r.label)}</td><td class="mono" style="text-align:right">${r.n}</td><td class="mono" style="text-align:right;color:${r.pen ? 'var(--red)' : 'var(--text3)'}">${r.pen ? '−' + r.pen : '0'}</td></tr>`).join('')}</table></div>
+      </div>
+      <div class="grid2">
         <div class="card"><div class="card-title">Event rate <small>per minute · last 30 min · red = critical</small></div><canvas class="chart" id="ch-events"></canvas></div>
+        <div class="card"><div class="card-title">Alert timeline <small>last 60 min · ring = active, bar = repeated or resolved span</small></div><canvas class="chart" id="ch-alerts"></canvas></div>
+      </div>
+      <div class="zones-strip">${zones.map((z) => `<div class="zone-tile" style="border-top-color:${esc(z.color)}"><div class="zt-name">${esc(z.name)}</div><div class="zt-row"><span>${z.online}/${z.assets} online</span><span class="badge ${z.findings ? 'b-red' : 'b-green'}">${z.findings} finding${z.findings === 1 ? '' : 's'}</span></div><div class="bar"><i style="width:${z.assets ? Math.round(z.online / z.assets * 100) : 0}%"></i></div><div class="zt-cond">${z.conduits.length ? z.conduits.map((c) => `<span class="chip">${esc(c)}</span>`).join('') : '<span class="muted">no conduits</span>'}</div></div>`).join('')}</div>
+      <div class="grid3">
+        <div class="card"><div class="card-title">Physics invariants <small>OXP-018</small></div>${invs.length ? `<table class="plain">${invs.map(([asset, n, i]) => `<tr><td><b class="mono">${esc(asset)}</b><br><span class="muted">${esc(n)}</span></td><td style="text-align:right"><span class="badge ${i.status === 'ok' ? 'b-green' : i.status === 'violated' ? 'b-red' : 'b-grey'}">${esc(i.status)}</span></td></tr>`).join('')}</table>` : '<div class="empty">No invariants configured.</div>'}</div>
+        <div class="card"><div class="card-title">Sensor health <small>heartbeats and ingest</small></div>${s.sensors.length ? `<table class="plain">${s.sensors.map((x) => { const stale = Date.now() / 1000 - x.last_seen > 30; const lb = (x.detail && x.detail.last_batch) || {}; return `<tr><td><b>${esc(x.name)}</b><br><span class="muted">${x.events} events · last batch ${lb.flows || 0} flows${lb.rejected ? `, <span style="color:var(--red)">${lb.rejected} rejected</span>` : ''}</span></td><td style="text-align:right"><span class="badge ${stale ? 'b-red' : 'b-green'}">${stale ? 'silent' : 'reporting'}</span><br><span class="muted mono">${ago(x.last_seen)}</span></td></tr>`; }).join('')}</table>` : '<div class="empty">No sensors have reported yet.</div>'}</div>
         <div class="card"><div class="card-title">Open alerts</div><div class="donut-wrap"><canvas id="donut"></canvas><div class="donut-legend"><div><i style="background:var(--red)"></i>Critical <b>${s.alerts.critical}</b></div><div><i style="background:var(--amber)"></i>Warning <b>${s.alerts.warning}</b></div><div><i style="background:var(--blue)"></i>Info <b>${s.alerts.info}</b></div><div><i style="background:var(--green)"></i>Resolved 7d <b>${s.alerts.resolved_7d}</b></div></div></div></div>
       </div>
       <div class="grid2">
         <div class="card"><div class="card-title">Recent activity <small>click for details</small></div>${s.recent.map((e, i) => `<div class="ev-item" data-drawer="events" data-idx="${i}"><div class="ev-dot" style="background:${sevColor(e.severity)};color:${sevColor(e.severity)}"></div><div><div class="ev-time">${ago(e.ts)} · ${esc(e.rule || e.category)}</div><div class="ev-title">${esc(e.title)}</div><div class="ev-desc">${esc(e.source_ip || '')}${e.source_ip && e.asset ? ' → ' : ''}${esc(e.asset || '')}</div></div></div>`).join('') || '<div class="empty">No events yet.</div>'}</div>
         <div>
+          <div class="card"><div class="card-title">Function-code heatmap <small>who talks what to the PLCs · darker = more requests</small></div>${fcHeatmap(flows)}</div>
           <div class="card"><div class="card-title">Conduits <small>inspected / blocked</small></div>${table('dash-cond', ['Conduit', 'Protects', 'Sources', 'Inspected', 'Blocked', ''], s.conduits.map((c) => [`<span class="mono">${esc(c.id)}</span>`, esc(c.asset), c.sources, c.requests, c.denied ? `<span class="badge b-red">${c.denied}</span>` : '0', `<div class="bar"><i style="width:${inspected ? Math.round(c.requests / inspected * 100) : 0}%"></i></div>`]))}</div>
           <div class="card"><div class="card-title">Asset distribution</div>${table('dash-types', ['Type', 'Count', 'Online', 'Open alerts'], types.map(([t, v]) => [`<b>${esc(t)}</b>`, v.count, `<span class="badge ${v.online === v.count ? 'b-green' : v.online ? 'b-amber' : 'b-grey'}">${v.count ? Math.round(v.online / v.count * 100) : 0}%</span>`, v.alerts ? `<span class="badge b-red">${v.alerts}</span>` : '0']))}</div>
-          <div class="card"><div class="card-title">Process integrity</div>${table('dash-proc', ['Asset', 'Status', 'Excursions'], Object.entries(s.process).map(([a, v]) => [`<b>${esc(a)}</b>`, statusBadge(v.online ? 'online' : 'offline'), v.excursions ? `<span class="badge b-red">${v.excursions}</span>` : '<span class="badge b-green">none</span>']), { empty: 'Integrity monitor has not polled yet.' })}</div>
         </div>
       </div>`;
-    S.evHist.push({ t: Date.now(), blocked, inspected, online: s.assets.online, crit: s.alerts.critical }); if (S.evHist.length > 60) S.evHist.shift();
-    sparkline($('sp-assets'), S.evHist.map((x) => x.online), css('--green')); sparkline($('sp-crit'), S.evHist.map((x) => x.crit), css('--red')); sparkline($('sp-ev'), buckets.all, css('--blue')); sparkline($('sp-blk'), S.evHist.map((x) => x.blocked), css('--amber'));
+    S.evHist.push({ t: Date.now(), blocked, inspected, online: s.assets.online, crit: s.alerts.critical, posture: posture.score }); if (S.evHist.length > 60) S.evHist.shift();
+    sparkline($('sp-posture'), S.evHist.map((x) => x.posture), posture.score >= 75 ? css('--green') : css('--amber')); sparkline($('sp-assets'), S.evHist.map((x) => x.online), css('--green')); sparkline($('sp-crit'), S.evHist.map((x) => x.crit), css('--red')); sparkline($('sp-ev'), buckets.all, css('--blue')); sparkline($('sp-blk'), S.evHist.map((x) => x.blocked), css('--amber'));
     lineChart($('ch-events'), [{ v: buckets.all, c: css('--blue'), name: 'all events' }, { v: buckets.crit, c: css('--red'), name: 'critical' }], { min: 0, xlabel: '30 minutes ago → now' });
+    alertTimeline($('ch-alerts'), alerts);
+    arcGauge($('gauge-posture'), posture.score, `grade ${posture.grade}`);
     donut($('donut'), [{ v: s.alerts.critical, c: css('--red') }, { v: s.alerts.warning, c: css('--amber') }, { v: s.alerts.info, c: css('--blue') }]);
     counts(s);
   };
@@ -256,6 +349,15 @@
     $('pg-process').innerHTML = `<div class="page-head"><div><h2>Process Integrity</h2><p>Read-only polling through the conduits · live trends with safe envelopes (green band), golden configuration, interlocks, device identity</p></div></div>` + (Object.entries(live).map(([asset, v]) => `<div class="card"><div class="card-title"><span>${esc(asset)} ${statusBadge(v.online ? 'online' : 'offline')} <small>${esc(v.host || '')} · ${v.identity ? esc(`${v.identity.VendorName} ${v.identity.ModelName} · rev ${v.identity.MajorMinorRevision} · ${v.identity.UserApplicationName}`) : 'identity not read'}</small></span><span class="ev-time">${ago(v.ts)}</span></div>${v.online ? `<div class="tags">${Object.entries(v.tags).map(([n, t]) => {
       const cls = t.status === 'ok' ? '' : t.status === 'drift' ? 'drift' : 'bad'; const env = t.role === 'process' && (t.min != null || t.max != null) ? `envelope ${num(t.min)} … ${num(t.max)}` : t.role === 'config' ? `golden ${num(t.golden)}` : t.desc || '';
       return `<div class="tagcard ${cls}"><div class="tn"><span>${esc(n)}</span><span class="badge ${roles[t.role] || 'b-grey'}">${esc(t.role)}</span></div><div class="tv">${num(t.value)}<small>${esc(t.unit)}</small> ${t.status !== 'ok' ? `<span class="badge b-red">${esc(t.status)}</span>` : ''}</div><canvas data-trend="${esc(asset)}|${esc(n)}"></canvas><div class="td">${esc(env)}</div></div>`; }).join('')}</div>${Object.keys(v.invariants || {}).length ? `<div class="card-title" style="margin-top:14px">Physics invariants <small>reported values must obey the plant's physics · violations raise OXP-018</small></div>${table('inv-' + asset, ['Invariant', 'Status', 'Meaning', 'Expression'], Object.entries(v.invariants).map(([n, i]) => [`<b class="mono">${esc(n)}</b>`, `<span class="badge ${i.status === 'ok' ? 'b-green' : i.status === 'violated' ? 'b-red' : 'b-grey'}">${esc(i.status)}</span>`, esc(i.desc || ''), `<span class="mono muted">${esc(i.expr)}</span>`]))}` : ''}` : `<div class="empty">${esc(v.error || 'offline')}</div>`}</div>`).join('') || '<div class="empty">No integrity targets configured.</div>');
+    if (LIVE()) $('pg-process').insertAdjacentHTML('afterbegin', `<div class="card research"><div class="card-title">Research controls <small>this plant runs in your browser · inject a fault and watch the integrity monitor detect it (same rules as the console applies to real PLCs)</small></div><div class="filters">
+      <button class="act" data-live='{"plc":"PLC-001","type":"actuator_fail","tag":"P-101","duration_s":120}' data-msg="P-101 failed: watch the intake mass balance (OXP-018) and T-101 level">P-101 pump failure</button>
+      <button class="act" data-live='{"plc":"PLC-001","type":"sensor_stuck","tag":"LT-101","duration_s":120}' data-msg="LT-101 frozen: the level no longer follows the flows (OXP-018)">Freeze LT-101</button>
+      <button class="act" data-live='{"plc":"PLC-002","type":"actuator_fail","tag":"P-201","duration_s":120}' data-msg="Dosing pump failed: chlorine residual will leave its envelope (OXP-005)">Dosing pump failure</button>
+      <button class="act" data-live='{"plc":"PLC-003","type":"sensor_offset","tag":"PT-301","value":2.5,"duration_s":90}' data-msg="PT-301 spoofed +2.5 bar: PLC-003 will trip its high-high interlock on the false reading (OXP-005, OXP-012)">Spoof PT-301 +2.5 bar</button>
+      <button class="act" data-live='{"plc":"PLC-003","type":"blackout","duration_s":25}' data-msg="PLC-003 blacked out for 25 s (OXP-007)">Blackout PLC-003</button>
+      <button class="act" data-live='{"type":"engineering_write","plc":"PLC-001","tag":"LAHH_LIMIT","value":99}' data-msg="LAHH_LIMIT rewritten to 99 %: configuration drift (OXP-006) and a change awaiting review">Tamper LAHH_LIMIT → 99</button>
+      <button class="act" data-live='{"type":"operator_write","plc":"PLC-002","tag":"CL2_SP","value":1.8}' data-msg="CL2_SP changed by an operator: logged as OXP-013">Operator: CL2_SP → 1.8</button>
+      <button class="act danger" data-live='{"type":"clear_all"}' data-msg="All injected faults cleared">Clear faults</button></div></div>`);
     document.querySelectorAll('canvas[data-trend]').forEach((c) => { const [asset, n] = c.dataset.trend.split('|'); const t = live[asset].tags[n]; const vals = (S.procHist[asset] || {})[n] || []; const col = t.status === 'ok' ? css('--green') : css('--red'); sparkline(c, vals.length > 1 ? vals : [t.value, t.value], col); });
   };
   P.events = async () => {
@@ -304,6 +406,6 @@
     } catch (e) { if (e.message !== 'unauthenticated') { $('liveBadge').className = 'badge-live down'; $('liveBadge').lastElementChild.textContent = e.message; } }
   }
   function start() { clearInterval(S.timer); refresh(); S.timer = setInterval(() => { if (!document.hidden) refresh(); }, S.page === 'process' ? 2500 : 4000); }
-  if (DEMO) { $('loginUser').value = 'admin'; $('loginPass').value = 'Plant@2025'; $('loginNote').textContent = 'Interactive demo replaying a real lab run. Sign in as admin, engineer, soc or operator with Plant@2025.'; const f = document.querySelector('.side-footer'); if (f) f.insertAdjacentHTML('afterbegin', '<a href="hmi.html">Operator HMI demo →</a><br>'); }
+  if (DEMO) { $('loginUser').value = 'admin'; $('loginPass').value = 'Plant@2025'; $('loginNote').textContent = 'Interactive demo: findings captured from a real lab run, plus the plant and its integrity monitor running live in your browser. Sign in as admin, engineer, soc or operator with Plant@2025.'; const f = document.querySelector('.side-footer'); if (f) f.insertAdjacentHTML('afterbegin', '<a href="hmi.html">Operator HMI demo →</a><br>'); }
   (async () => { try { const m = await api('/api/me'); if (m.authenticated) enter(m); } catch (e) { /* login shown */ } })();
 })();

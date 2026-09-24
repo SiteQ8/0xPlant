@@ -21,7 +21,7 @@ nav{display:flex;gap:4px}nav button{background:transparent;border:1px solid tran
 #banner{display:none;margin:14px 22px 0;padding:10px 16px;border-radius:10px;border:1px solid var(--bad);background:rgba(239,68,68,.12);color:#FCA5A5;font-family:var(--mono);font-size:.8rem;animation:blink 1.4s infinite}
 #banner.on{display:flex;justify-content:space-between;align-items:center}
 @keyframes blink{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.35)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}
-.screen{display:none}.screen.on{display:block}
+.screen{display:none}.screen.on{display:block}main.grid.screen:not(.on){display:none}
 main.grid{padding:16px 22px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 @media(max-width:1200px){main.grid{grid-template-columns:1fr}}
 .page{padding:16px 22px}
@@ -68,6 +68,7 @@ canvas.trend{width:100%;height:300px;display:block;padding:8px 14px}canvas#tr{he
 #login{position:fixed;inset:0;background:radial-gradient(900px 500px at 50% 30%,#12304a,#0B1220 70%);display:none;align-items:center;justify-content:center;z-index:100}#login.on{display:flex}
 #login .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px;width:380px;max-width:92vw}#login h2{font-family:var(--mono);color:var(--blue);margin-bottom:4px}#login p{color:var(--muted);font-size:.76rem;margin-bottom:14px}#login input{width:100%;margin:6px 0;padding:9px 11px;background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--text);font-family:var(--mono)}#login .err{color:#FCA5A5;font-size:.74rem;min-height:16px;margin-top:6px}
 footer{padding:10px 22px;color:var(--muted);font-size:.7rem;font-family:var(--mono)}
+#demoBar{display:none;margin:14px 22px 0;padding:8px 14px;border:1px dashed #A78BFA;border-radius:10px;background:rgba(167,139,250,.08);font-family:var(--mono);font-size:.72rem;color:#C4B5FD;align-items:center;gap:8px;flex-wrap:wrap}#demoBar.on{display:flex}#demoBar b{color:#E9D5FF;margin-right:6px}#demoBar select{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:4px 6px;font-family:var(--mono);font-size:.72rem}#demoBar button{font-size:.7rem;padding:4px 9px}#demoBar button.fault{border-color:#7C3AED}
 </style>
 </head>
 <body>
@@ -79,6 +80,15 @@ footer{padding:10px 22px;color:var(--muted);font-size:.7rem;font-family:var(--mo
 </header>
 <div id="banner"><span id="bannerText"></span><span>ACTIVE INTERLOCK — supervisor reset required after the cause is cleared</span></div>
 
+<div id="demoBar"><b>RESEARCH DEMO</b><span>this plant runs in your browser (browser port of the PLC programs) · inject faults and watch the control system, alarms and interlocks react</span>
+  <span>speed <select id="demoSpeed"><option value="20">20×</option><option value="60" selected>60×</option><option value="180">180×</option><option value="600">600×</option></select></span>
+  <button class="fault" data-fault='{"plc":"PLC-001","type":"sensor_stuck","tag":"LT-101","duration_s":120}'>Freeze LT-101</button>
+  <button class="fault" data-fault='{"plc":"PLC-001","type":"actuator_fail","tag":"P-101","duration_s":120}'>P-101 failure</button>
+  <button class="fault" data-fault='{"plc":"PLC-002","type":"actuator_fail","tag":"P-201","duration_s":120}'>Dosing pump failure</button>
+  <button class="fault" data-fault='{"plc":"PLC-003","type":"sensor_offset","tag":"PT-301","value":2.5,"duration_s":90}'>Spoof PT-301 +2.5 bar</button>
+  <button class="fault" data-fault='{"plc":"PLC-002","type":"link_loss","tag":"PLC-001","duration_s":60}'>Link loss PLC-002→PLC-001</button>
+  <button class="fault" data-fault='{"plc":"PLC-003","type":"blackout","duration_s":20}'>Blackout PLC-003</button>
+  <button id="demoClear">Clear faults</button></div>
 <main class="grid screen on" id="s-overview">
   <div class="card"><h2>INTAKE — PLC-001 <span class="mode" id="m-PLC-001">…</span></h2>
     <div class="pid"><svg class="pid-svg" viewBox="0 0 320 210">
@@ -247,6 +257,11 @@ function showLogin(){$('login').classList.add('on');}
 async function login(){$('le').textContent='';try{const j=await api('/api/login',{username:$('lu').value,password:$('lp').value});if(!j.ok)throw new Error(j.error||'login failed');me=j;$('login').classList.remove('on');$('who').innerHTML=`<b>${j.username}</b> · ${j.role}`;$('logout').style.display='';built={};}catch(e){$('le').textContent=e.message;}}
 $('lb').onclick=login;$('lp').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
 $('logout').onclick=async()=>{await api('/api/logout',{});me={role:'viewer'};$('who').textContent='';$('logout').style.display='none';showLogin();};
+// ---- research demo controls (GitHub Pages: the plant runs in the browser) ----
+if(DEMO&&DEMO.fault){$('demoBar').classList.add('on');$('lnote').textContent='demo accounts: operator / Operator@2025 · supervisor / Supervisor@2025';
+ $('demoBar').querySelectorAll('[data-fault]').forEach(b=>b.onclick=()=>{const f=JSON.parse(b.dataset.fault);DEMO.fault(f.plc,f);toast(`Injected ${f.type.replace('_',' ')}${f.tag?' on '+f.tag:''} at ${f.plc}${f.duration_s?' for '+f.duration_s+' s':''}`,'ok');});
+ $('demoClear').onclick=()=>{for(const p of ['PLC-001','PLC-002','PLC-003'])DEMO.fault(p,{type:'clear'});toast('All injected faults cleared','ok');};
+ $('demoSpeed').onchange=e=>{DEMO.setTimeScale(+e.target.value);toast(`Plant time scale ${e.target.value}×`,'ok');};}
 let latestState=null;
 async function tick(){try{const s=await api('/api/state');latestState=s;if(s.role){me={username:s.user,role:s.role};$('who').innerHTML=`<b>${s.user}</b> · ${s.role}`;}render(s);if(screen==='alarms')renderAlarms();if(screen==='trends'&&Date.now()%5000<1100)renderTrends();}catch(e){if(e.message!=='login required')$('links').innerHTML='<span><i class="dot"></i>HMI backend unreachable</span>';}}
 (async()=>{try{const m=await api('/api/me');if(m.login_required&&!m.authenticated)showLogin();else if(m.authenticated){me={username:m.username,role:m.role};$('who').innerHTML=`<b>${m.username}</b> · ${m.role}`;$('logout').style.display=m.login_required?'':'none';}}catch(e){}setInterval(tick,1000);tick();})();

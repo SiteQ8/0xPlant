@@ -56,9 +56,13 @@
 |---|---|
 | ![Process](docs/screenshots/console-process-dark.png) | ![HMI](docs/screenshots/hmi.png) |
 
-**Try it now:** the [live demo](https://siteq8.github.io/0xPlant) runs the real console code in your browser, replaying a dataset captured from an actual lab run (sign in as `admin`, `engineer`, `soc` or `operator` with `Plant@2025`; acknowledge alerts, approve changes, open drawers). The [operator HMI demo](https://siteq8.github.io/0xPlant/hmi.html) replays the plant the same way. Rebuild both from your own lab run with `python scripts/build_site.py`.
+| Research controls: a fault injected in the browser, detected by the same rules | HMI alarm summary and plant sequence control |
+|---|---|
+| ![Fault detected](docs/screenshots/site-process-fault.png) | ![HMI alarms](docs/screenshots/hmi-alarms.png) |
 
-The console is a single page under a strict Content Security Policy with no external JavaScript: canvas charts, an SVG topology map with animated flows, detail drawers on every row, sortable and filterable tables (`/` focuses the filter), dark mode, and toasts for new critical alerts. The HMI shows an animated P&ID with running pumps, flowing pipes, tank levels, arc gauges, a trend with axes and an interlock banner.
+**Try it now:** the [live demo](https://siteq8.github.io/0xPlant) runs the real console code in your browser with the findings captured from an actual lab run, and the plant itself runs in your browser too: a port of the PLC programs and physics (`plant/plantsim.js`, parity-tested against the Python PLCs) feeds the process page and the dashboard through a browser port of the integrity monitor. Sign in as `admin`, `engineer`, `soc` or `operator` with `Plant@2025`, open *Process Integrity* and inject a fault from the research controls: a frozen transmitter, a failed pump, a spoofed pressure, a blackout, a tampered limit. The [operator HMI demo](https://siteq8.github.io/0xPlant/hmi.html) (`operator / Operator@2025`, `supervisor / Supervisor@2025`) runs the same control system with alarms, trends, the plant sequence and its own fault bar. Rebuild both from your own lab run with `python scripts/build_site.py`.
+
+The console is a single page under a strict Content Security Policy with no external JavaScript: a widget dashboard (plant overview, security posture score, event rate, alert timeline, zone health, invariants, sensor health, function-code heatmap), canvas charts, an SVG topology map with animated flows, detail drawers on every row, sortable and filterable tables (`/` focuses the filter), dark mode, and toasts for new critical alerts. The HMI has an overview with an animated P&ID and gauges, an alarm summary with acknowledgement and history, a trends screen backed by the historian, and a plant control screen for the sequence, interlocks and control loops.
 
 ---
 
@@ -127,7 +131,8 @@ The PLC also enforces engineering limits itself: an out-of-range setpoint is cla
 
 ### Operator HMI and engineering tool
 
-* **HMI** (`python -m plant hmi`) — live P&ID-style screen with tank levels, pumps, valves, alarms, a trend and operator controls. Writes go to the PLCs through the conduits; a blocked write is shown to the operator with the Modbus exception the conduit returned.
+* **HMI** (`python -m plant hmi`) — a small SCADA node: it polls the PLCs through the conduits and keeps an ISA-18.2 style alarm manager (active/unacknowledged, acknowledged, cleared; acknowledgement and history), a 30-minute historian for the trends screen, and operator sessions with roles. Operators change setpoints and modes; supervisors also start and stop the plant sequence and reset interlocks; viewers only watch. Every write is role-checked in the HMI and then again by the PLC's access level and by the conduit; a blocked write is shown to the operator with the Modbus exception the conduit returned. Accounts live in `hmi.users` (PBKDF2 hashes); with no users configured the lab HMI is open with supervisor rights.
+* **Control system** — the PLC logic acts on the *measured* transmitter values it published on the previous scan (a spoofed or frozen sensor drives the control system exactly as on a real PLC), the treatment PLC runs a plant sequence (stopped → wait upstream → filling → running → stopping, held on loss of upstream), and interlocks latch until a supervisor reset.
 * **EWS tool** (`python -m plant ews`) — read, write and identify tags by name from the engineering workstation:
 
 ```bash
@@ -216,6 +221,7 @@ python -m oxplant hash-password
 | **IoT layer** | `plant/mqtt.py`, `plant/iot.py`, `oxplant/mqttmon.py` | Dependency-free MQTT broker, condition-monitoring sensor fleet, and a monitor that baselines topics, publishers and payload ranges (OXP-019/020) |
 | **Metrics and exports** | `/metrics` (Prometheus), `/api/export/<kind>.csv` | Time series of process values, invariant state, alerts and conduit counters; tabular exports of everything the console stores |
 | **Experiment harness** | `research/run_experiments.py` | 13 reproducible scenarios measuring detection latency per rule, with JSON and Markdown reports ([methodology](docs/research/methodology.md)) |
+| **Browser testbed** | `plant/plantsim.js`, `plant/hmi_demo.js`, `oxplant/ui_live.js` | The plant, the HMI backend and the integrity monitor ported to JavaScript for the live demo: run classroom exercises or quick what-if experiments with no install, parity-tested against the Python programs (`tests/test_browser_plant.py`) |
 
 ```bash
 python research/run_experiments.py --list          # scenarios
@@ -287,9 +293,9 @@ plant/        the water works: PLC programs & physics, soft-PLC runtime, HMI, EW
 oxplant/      the security tool: policy, conduit, baseline, discovery, integrity, invariants, mqtt monitor, store, console, outputs, auth
 research/     experiment harness and results
 config/       local and Docker configurations
-scripts/      run_local.py
-tests/        pytest suite (includes pymodbus interoperability)
-docs/         GitHub Pages live demo (built by scripts/build_site.py from the real UI + captured data)
+scripts/      run_local.py, build_site.py
+tests/        pytest suite (includes pymodbus interoperability and the JavaScript plant parity tests, which need Node)
+docs/         GitHub Pages live demo (built by scripts/build_site.py: the real UI, captured findings, and the plant running in the browser)
 ```
 
 ## Testing
