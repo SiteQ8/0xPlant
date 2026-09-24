@@ -47,6 +47,10 @@ hmi:
     - {name: PLC-001, program: intake,       host: 10.10.3.10, port: 502}
     - {name: PLC-002, program: treatment,    host: 10.10.3.11, port: 502}
     - {name: PLC-003, program: distribution, host: 10.10.3.12, port: 502}
+  users:
+    # operator / Operator@2025 (setpoints, start/stop, acknowledge) · supervisor / Supervisor@2025 (+ interlock reset, plant sequence)
+    - {username: operator,   role: operator,   password_hash: "pbkdf2_sha256$600000$b3hwbGFudC1obWktc2FsdC0wMQ==$6e9b421ad82a578ddc6874067e2e800ba37ef2340e8fb879f02d92f09e683e5e"}
+    - {username: supervisor, role: supervisor, password_hash: "pbkdf2_sha256$600000$b3hwbGFudC1obWktc2FsdC0wMg==$d2be80e7b487d0e10f5059109b5ff268d5ab833932e2f7a1e3c52fea874bc5c4"}
 
 # IoT layer: MQTT broker container (10.10.3.50) and sensor fleet container on Level 1 (10.10.1.60)
 mqtt:

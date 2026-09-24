@@ -46,6 +46,7 @@ class HMIConfig:
     source_ip: Optional[str] = None
     poll_ms: int = 500
     plcs: List[HMIPLC] = field(default_factory=list)
+    users: List[Dict[str, str]] = field(default_factory=list)   # {username, role: viewer|operator|supervisor, password_hash}
 
 
 @dataclass
@@ -91,7 +92,9 @@ def load(path: str) -> PlantConfig:
     cfg.hmi = HMIConfig(listen=h.get("listen", "0.0.0.0"), port=int(h.get("port", 8080)),
                         source_ip=h.get("source_ip"), poll_ms=int(h.get("poll_ms", 500)),
                         plcs=[HMIPLC(x["name"], x["program"], x["host"], int(x.get("port", 502)), int(x.get("unit", 1)))
-                              for x in h.get("plcs", [])])
+                              for x in h.get("plcs", [])],
+                        users=[{"username": str(u["username"]), "role": str(u.get("role", "viewer")), "password_hash": str(u["password_hash"])}
+                               for u in h.get("users", [])])
     m = raw.get("mqtt", {})
     cfg.mqtt = MQTTConfig(listen=m.get("listen", "0.0.0.0"), port=int(m.get("port", 1883)), iot_source_ip=m.get("iot_source_ip"),
                           interval_s=float(m.get("interval_s", 2.0)),

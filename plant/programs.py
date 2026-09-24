@@ -49,6 +49,12 @@ class Program:
     def actuator_failed(self, name: str) -> bool:
         return bool(self.faults and self.faults.actuator_failed(name))
 
+    def reset_requested(self) -> bool:
+        """Either the engineering reset coil or the supervisor reset command from the HMI."""
+        a = self.consume("ALARM_RESET")
+        b = self.consume("RESET_CMD")
+        return a or b
+
     # --- helpers ---
     def get(self, name: str) -> float:
         return self.map.get(self.store, name)
@@ -177,7 +183,7 @@ class Intake(Program):
         self.clamp_setpoint("LALL_LIMIT", 2.0, start_sp - 2.0)
         self.clamp_setpoint("TURB_HIGH_LIMIT", 1.0, 200.0)
 
-        if self.consume("ALARM_RESET") and self.level < lahh_limit - 2.0:
+        if self.reset_requested() and self.level < lahh_limit - 2.0:
             self.lahh = False
         if self.level >= lahh_limit:
             self.lahh = True
@@ -251,6 +257,7 @@ class Treatment(Program):
         Tag("SC-201", "input", 5, 100, "%", "P-201 dosing stroke feedback"),
         Tag("LT-101-R", "input", 6, 100, "%", "Intake tank level (remote from PLC-001)"),
         Tag("LT-301-R", "input", 7, 100, "%", "Clearwell level (remote from PLC-003)"),
+        Tag("SEQ_STEP", "input", 8, 1, "", "Plant sequence step: 0 stopped, 1 wait upstream, 2 filling, 3 running, 4 stopping, 5 held"),
         Tag("CL2_SP", "holding", 100, 100, "mg/L", "Chlorine residual setpoint", "operator"),
         Tag("FLOW_SP", "holding", 101, 10, "m3/h", "Treatment flow setpoint", "operator"),
         Tag("BACKWASH_DP_SP", "holding", 102, 10, "kPa", "Backwash trigger dP", "operator"),
@@ -266,6 +273,8 @@ class Treatment(Program):
         Tag("DOSING_ENABLE_CMD", "coils", 1, 1, "", "Manual: dosing pump enable", "operator"),
         Tag("BACKWASH_CMD", "coils", 2, 1, "", "Start filter backwash", "operator"),
         Tag("TRANSFER_RUN_CMD", "coils", 3, 1, "", "Manual: transfer pump run", "operator"),
+        Tag("PLANT_START_CMD", "coils", 5, 1, "", "Start the plant sequence", "supervisor"),
+        Tag("PLANT_STOP_CMD", "coils", 6, 1, "", "Stop the plant sequence", "supervisor"),
         Tag("DOSING_RUNNING", "discrete", 0, 1, "", "P-201 dosing"),
         Tag("BACKWASH_ACTIVE", "discrete", 1, 1, "", "Backwash in progress"),
         Tag("AAHH_TRIP", "discrete", 2, 1, "", "Interlock: chlorine high-high"),
@@ -276,7 +285,9 @@ class Treatment(Program):
         Tag("TRANSFER_RUNNING", "discrete", 7, 1, "", "P-202 transfer pump running"),
         Tag("REMOTE_OK_003", "discrete", 8, 1, "", "Link to PLC-003 healthy"),
         Tag("CLEARWELL_HOLD", "discrete", 9, 1, "", "Transfer held: clearwell high"),
+        Tag("PLANT_RUNNING", "discrete", 10, 1, "", "Plant sequence in RUN"),
     ]
+    SEQ_STOPPED, SEQ_WAIT, SEQ_FILL, SEQ_RUN, SEQ_STOP, SEQ_HELD = 0, 1, 2, 3, 4, 5
     remote_tags = {"PLC-001": [("LT-101", "input", 0, 100)], "PLC-003": [("LT-301", "input", 0, 100)]}
 
     def defaults(self) -> None:
@@ -294,6 +305,8 @@ class Treatment(Program):
         self.clearwell_hold = False
         self.upstream_level = 0.0
         self.clearwell_level = 0.0
+        self.seq = self.SEQ_RUN            # the plant is delivered running; supervisors can stop and restart it
+        self.seq_timer = 0.0
         self.set("CL2_SP", 1.50)
         self.set("FLOW_SP", 120.0)
         self.set("BACKWASH_DP_SP", 60.0)
@@ -318,7 +331,7 @@ class Treatment(Program):
         kp = self.clamp_setpoint("PI_KP", 0.1, 20.0)
         ti = self.clamp_setpoint("PI_TI", 5.0, 600.0)
 
-        if self.consume("ALARM_RESET") and self.residual < aahh - 0.5:
+        if self.reset_requested() and self.residual < aahh - 0.5:
             self.aahh = False
         if self.residual >= aahh:
             self.aahh = True
@@ -340,13 +353,15 @@ class Treatment(Program):
             self.backwash_left = 0.1   # filter protection runs in AUTO and MANUAL alike
         backwash = self.backwash_left > 0
 
+        start_cmd, stop_cmd = self.consume("PLANT_START_CMD"), self.consume("PLANT_STOP_CMD")
         if auto:
-            self.transfer_run = available and not backwash and not self.clearwell_hold
+            self._sequence(dt_h, start_cmd, stop_cmd, available, backwash)
+            self.transfer_run = self.seq in (self.SEQ_FILL, self.SEQ_RUN) and available and not backwash and not self.clearwell_hold
         else:
             self.transfer_run = self.coil("TRANSFER_RUN_CMD") and available and not backwash
         self.flow_cmd = flow_sp if self.transfer_run else 0.0
 
-        dosing_wanted = self.flow > 5.0
+        dosing_wanted = self.flow > 5.0 and (not auto or self.seq == self.SEQ_RUN)
         if auto:
             self.dosing_run = dosing_wanted and not self.aahh
             if self.dosing_run:
@@ -369,6 +384,33 @@ class Treatment(Program):
         self.interlock_word = 1 if self.aahh else 0
         low = self.dosing_run and self.residual < self.get("AALL_LIMIT")
         self.alarm_word = (2 if low else 0) | (4 if self.dp > bw_sp * 0.9 else 0)
+
+    def _sequence(self, dt_h: float, start: bool, stop: bool, available: bool, backwash: bool) -> None:
+        """Plant start/stop sequence (supervisor commands): STOPPED -> WAIT UPSTREAM -> FILL -> RUN -> STOP."""
+        flow_sp = self.get("FLOW_SP")
+        if stop and self.seq not in (self.SEQ_STOPPED, self.SEQ_STOP):
+            self.seq, self.seq_timer = self.SEQ_STOP, 0.0
+        elif start and self.seq == self.SEQ_STOPPED:
+            self.seq, self.seq_timer = self.SEQ_WAIT, 0.0
+        if self.seq == self.SEQ_WAIT:
+            if available and self.upstream_level > 15.0:
+                self.seq, self.seq_timer = self.SEQ_FILL, 0.0
+        elif self.seq == self.SEQ_FILL:
+            self.seq_timer += dt_h
+            if self.flow > 0.8 * flow_sp:
+                self.seq, self.seq_timer = self.SEQ_RUN, 0.0
+            elif self.seq_timer > 1.0:
+                self.seq = self.SEQ_HELD               # could not establish flow within one simulated hour
+        elif self.seq == self.SEQ_RUN:
+            if not available:
+                self.seq, self.seq_timer = self.SEQ_HELD, 0.0
+        elif self.seq == self.SEQ_HELD:
+            if available and self.upstream_level > 15.0:
+                self.seq, self.seq_timer = self.SEQ_FILL, 0.0
+        elif self.seq == self.SEQ_STOP:
+            self.seq_timer += dt_h
+            if self.flow < 1.0 or self.seq_timer > 0.2:
+                self.seq = self.SEQ_STOPPED
 
     def physics(self, dt_h: float) -> None:
         if self.backwash_left > 0:
@@ -399,6 +441,8 @@ class Treatment(Program):
         self.set("SC-201", self.stroke if self.dosing_run else 0.0)
         self.set("LT-101-R", self.upstream_level)
         self.set("LT-301-R", self.clearwell_level)
+        self.set("SEQ_STEP", self.seq)
+        self.set("PLANT_RUNNING", self.seq == self.SEQ_RUN)
         self.set("DOSING_RUNNING", self.dosing_run)
         self.set("BACKWASH_ACTIVE", self.backwash_left > 0)
         self.set("AAHH_TRIP", self.aahh)
@@ -474,7 +518,7 @@ class Distribution(Program):
         max_speed = self.clamp_setpoint("MAX_SPEED", 30.0, 100.0)
         self.clamp_setpoint("PALL_LIMIT", 0.5, sp - 0.5)
 
-        if self.consume("ALARM_RESET"):
+        if self.reset_requested():
             if self.level > lall + 5.0:
                 self.lall = False
             if self.pressure < pahh - 0.5:

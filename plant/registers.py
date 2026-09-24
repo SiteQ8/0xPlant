@@ -40,7 +40,7 @@ class Tag:
     scale: float = 1.0  # engineering value = register / scale
     unit: str = ""
     desc: str = ""
-    access: str = "ro"  # ro | operator | engineer
+    access: str = "ro"  # ro | operator | supervisor | engineer
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -92,5 +92,6 @@ def status_tags() -> List[Tag]:
         Tag("UPTIME_MIN", "holding", HR_UPTIME, 1, "min", "Uptime (simulated minutes)"),
         Tag("SIM_HOUR", "holding", HR_SIMHOUR, 100, "h", "Simulated hour of day"),
         Tag("REMOTE_OK", "holding", HR_REMOTE_OK, 1, "", "Remote PLC link word"),
-        Tag("ALARM_RESET", "coils", 16, 1, "", "Reset latched interlocks/alarms", "engineer"),
+        Tag("ALARM_RESET", "coils", 16, 1, "", "Reset latched interlocks/alarms (engineering)", "engineer"),
+        Tag("RESET_CMD", "coils", 4, 1, "", "Reset latched interlocks/alarms (supervisor, from the HMI)", "supervisor"),
     ]
