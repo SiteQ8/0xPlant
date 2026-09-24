@@ -61,7 +61,7 @@ class Console:
     def wait_for_rule(self, rule: str, t0: float, timeout: float) -> Optional[float]:
         deadline = time.time() + timeout
         while time.time() < deadline:
-            ev = self.events_since(t0, rule)
+            ev = [e for e in self.events_since(t0, rule) if e["ts"] >= t0]
             if ev:
                 return min(e["ts"] for e in ev) - t0
             time.sleep(0.25)

@@ -176,3 +176,15 @@ def test_metrics_and_csv_export(console):
     assert status == 200 and headers["Content-Type"].startswith("text/csv") and body.splitlines()[0].startswith(b"id,ts,severity")
     assert c.call("GET", "/api/export/nope.csv")[0] == 404
     assert any(a["action"] == "export" for a in console.store.list_audit())
+
+
+def test_events_since_accepts_fractional_timestamps(console):
+    import time
+    c = Client(console.port)
+    c.login("admin")
+    from oxplant.events import Event
+    t0 = time.time()
+    console.store.add_event(Event("after", ts=t0 + 0.5))
+    ev = c.call("GET", f"/api/events?since={t0 + 0.25}")[1]
+    assert [e["title"] for e in ev] == ["after"]
+    assert c.call("GET", "/api/events?since=abc")[0] == 200

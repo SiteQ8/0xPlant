@@ -44,6 +44,25 @@ def generate_findings():
     call(HMI, "/api/write", {"plc": "PLC-002", "tag": "CL2_SP", "value": 1.6})
     sys.path.insert(0, ROOT)
     from modbuslite import ModbusClient, ModbusException
+    from plant.mqtt import MQTTClient
+
+    # research detections: a frozen level transmitter while the intake pump fails (OXP-018 invariant),
+    # an unknown IoT publisher (OXP-019) and a permitted host reading a block it never read before (OXP-017)
+    for spec in ({"type": "actuator_fail", "tag": "P-101", "duration_s": 45}, {"type": "sensor_stuck", "tag": "LT-101", "duration_s": 45}):
+        req = urllib.request.Request("http://127.0.0.1:9001/fault", data=json.dumps(spec).encode(), method="POST", headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=5).read()
+
+    async def iot_and_pattern():
+        c = MQTTClient("127.0.3.50", 1883, client_id="contractor-laptop")
+        await c.connect()
+        await c.publish("plant/intake/VIB-999", json.dumps({"sensor": "VIB-999", "vibration_mm_s": 9.9, "fw": "unknown"}).encode())
+        await c.close()
+        try:
+            async with ModbusClient("127.0.3.11", 5020, local_addr=("127.0.3.30", 0)) as m:
+                await m.read_holding_registers(150, 8)
+        except ModbusException:
+            pass
+    asyncio.run(iot_and_pattern())
 
     async def refused():
         for src, host, fn in (("127.0.3.77", "127.0.3.11", lambda c: c.read_holding_registers(0, 1)),
@@ -107,9 +126,9 @@ def main() -> int:
             pass
     lab = subprocess.Popen([sys.executable, "scripts/run_local.py"], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
-        time.sleep(24)
+        time.sleep(52)                 # start-up plus the 45 s behavioural learning windows
         generate_findings()
-        time.sleep(8)
+        time.sleep(10)
         data, hmi = capture()
     finally:
         lab.send_signal(signal.SIGTERM)

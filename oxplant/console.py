@@ -381,7 +381,10 @@ def make_handler(console: Console):
                 store.audit(s.username, "export", path, "ok", self._client_ip())
                 return self._send(HTTPStatus.OK, body.encode(), "text/csv; charset=utf-8", {"Content-Disposition": f"attachment; filename={path.rsplit('/', 1)[-1]}"})
             limit = _qint(q, "limit", 200, 1, 2000)
-            since = float(_qint(q, "since", 0, 0, 4102444800))
+            try:
+                since = max(0.0, min(float(q.get("since", 0) or 0), 4102444800.0))
+            except (TypeError, ValueError):
+                since = 0.0
             routes = {
                 "/api/summary": lambda: console.summary(),
                 "/api/assets": lambda: store.list_assets(),
