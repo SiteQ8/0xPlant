@@ -1,0 +1,229 @@
+{
+  "generated": "2026-09-24T18:34:41Z",
+  "runs": 1,
+  "learning_s": 45.0,
+  "false_alerts_quiet_period": [],
+  "scenarios": [
+    {
+      "scenario": "config-drift",
+      "title": "Engineering change to an interlock limit (EWS)",
+      "rule": "OXP-006",
+      "category": "integrity",
+      "runs": 1,
+      "detected": 1,
+      "detection_rate": 1.0,
+      "latency_mean_s": 1.3,
+      "latency_median_s": 1.3,
+      "latency_max_s": 1.3,
+      "timeout_s": 30.0,
+      "notes": "Legitimate but unreviewed change: golden configuration drift",
+      "raw": [
+        1.297236680984497
+      ]
+    },
+    {
+      "scenario": "setpoint-change",
+      "title": "Operator setpoint change (HMI)",
+      "rule": "OXP-013",
+      "category": "operations",
+      "runs": 1,
+      "detected": 1,
+      "detection_rate": 1.0,
+      "latency_mean_s": 0.8,
+      "latency_median_s": 0.8,
+      "latency_max_s": 0.8,
+      "timeout_s": 30.0,
+      "notes": "",
+      "raw": [
+        0.7953991889953613
+      ]
+    },
+    {
+      "scenario": "write-out-of-range",
+      "title": "HMI writes an engineering register",
+      "rule": "OXP-002",
+      "category": "security",
+      "runs": 1,
+      "detected": 1,
+      "detection_rate": 1.0,
+      "latency_mean_s": 0.0,
+      "latency_median_s": 0.0,
+      "latency_max_s": 0.0,
+      "timeout_s": 30.0,
+      "notes": "Refused by the conduit: Illegal Data Address",
+      "raw": [
+        0.001298666000366211
+      ]
+    },
+    {
+      "scenario": "unlisted-host",
+      "title": "Host outside the conduit policy reads a PLC",
+      "rule": "OXP-003",
+      "category": "security",
+      "runs": 1,
+      "detected": 1,
+      "detection_rate": 1.0,
+      "latency_mean_s": 0.0,
+      "latency_median_s": 0.0,
+      "latency_max_s": 0.0,
+      "timeout_s": 30.0,
+      "notes": "",
+      "raw": [
+        0.001377105712890625
+      ]
+    },
+    {
+      "scenario": "identification-denied",
+      "title": "HMI reads device identification",
+      "rule": "OXP-001",
+      "category": "security",
+      "runs": 1,
+      "detected": 1,
+      "detection_rate": 1.0,
+      "latency_mean_s": 0.0,
+      "latency_median_s": 0.0,
+      "latency_max_s": 0.0,
+      "timeout_s": 30.0,
+      "notes": "",
+      "raw": [
+        0.0013463497161865234
+      ]
+    },
+    {
+      "scenario": "new-pattern",
+      "title": "Permitted host reads a register block it never read before",
+      "rule": "OXP-017",
+      "category": "anomaly",
+      "runs": 1,
+      "detected": 1,
+      "detection_rate": 1.0,
+      "latency_mean_s": 0.0,
+      "latency_median_s": 0.0,
+      "latency_max_s": 0.0,
+      "timeout_s": 30.0,
+      "notes": "",
+      "raw": [
+        0.0021829605102539062
+      ]
+    },
+    {
+      "scenario": "mqtt-new-topic",
+      "title": "Unknown IoT publisher appears on the broker",
+      "rule": "OXP-019",
+      "category": "iot",
+      "runs": 1,
+      "detected": 1,
+      "detection_rate": 1.0,
+      "latency_mean_s": 0.0,
+      "latency_median_s": 0.0,
+      "latency_max_s": 0.0,
+      "timeout_s": 30.0,
+      "notes": "",
+      "raw": [
+        0.002084016799926758
+      ]
+    },
+    {
+      "scenario": "stuck-sensor",
+      "title": "Level transmitter stuck while the intake pump fails",
+      "rule": "OXP-018",
+      "category": "integrity",
+      "runs": 1,
+      "detected": 1,
+      "detection_rate": 1.0,
+      "latency_mean_s": 5.04,
+      "latency_median_s": 5.04,
+      "latency_max_s": 5.04,
+      "timeout_s": 45,
+      "notes": "Mass-balance invariant catches a frozen sensor that hides a draining tank",
+      "raw": [
+        5.038818597793579
+      ]
+    },
+    {
+      "scenario": "dosing-failure",
+      "title": "Chlorine dosing pump fails",
+      "rule": "OXP-005",
+      "category": "integrity",
+      "runs": 1,
+      "detected": 1,
+      "detection_rate": 1.0,
+      "latency_mean_s": 23.07,
+      "latency_median_s": 23.07,
+      "latency_max_s": 23.07,
+      "timeout_s": 80,
+      "notes": "Residual decays below the safe envelope; detection time is dominated by process dynamics",
+      "raw": [
+        23.073800325393677
+      ]
+    },
+    {
+      "scenario": "plc-blackout",
+      "title": "PLC stops answering (power/network loss)",
+      "rule": "OXP-016",
+      "category": "availability",
+      "runs": 1,
+      "detected": 1,
+      "detection_rate": 1.0,
+      "latency_mean_s": 0.85,
+      "latency_median_s": 0.85,
+      "latency_max_s": 0.85,
+      "timeout_s": 30,
+      "notes": "",
+      "raw": [
+        0.8487801551818848
+      ]
+    },
+    {
+      "scenario": "plc-offline-integrity",
+      "title": "Integrity monitor notices the silent PLC",
+      "rule": "OXP-007",
+      "category": "availability",
+      "runs": 1,
+      "detected": 1,
+      "detection_rate": 1.0,
+      "latency_mean_s": 0.58,
+      "latency_median_s": 0.58,
+      "latency_max_s": 0.58,
+      "timeout_s": 30,
+      "notes": "",
+      "raw": [
+        0.5769963264465332
+      ]
+    },
+    {
+      "scenario": "firmware-change",
+      "title": "Device reports a different firmware revision",
+      "rule": "OXP-008",
+      "category": "integrity",
+      "runs": 1,
+      "detected": 1,
+      "detection_rate": 1.0,
+      "latency_mean_s": 7.35,
+      "latency_median_s": 7.35,
+      "latency_max_s": 7.35,
+      "timeout_s": 45,
+      "notes": "",
+      "raw": [
+        7.3546857833862305
+      ]
+    },
+    {
+      "scenario": "rogue-device",
+      "title": "Unknown Modbus device appears on Level 1",
+      "rule": "OXP-009",
+      "category": "network",
+      "runs": 1,
+      "detected": 1,
+      "detection_rate": 1.0,
+      "latency_mean_s": 4.65,
+      "latency_median_s": 4.65,
+      "latency_max_s": 4.65,
+      "timeout_s": 90,
+      "notes": "Bounded by the discovery interval (60 s locally)",
+      "raw": [
+        4.649602651596069
+      ]
+    }
+  ]
+}

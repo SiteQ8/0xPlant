@@ -35,6 +35,10 @@
 * Use `--runs N` for repeated measurements; the JSON keeps every raw latency.
 * The traffic recorder (`sensors[].record`) produces the labelled dataset of every request seen during the experiment (see dataset.md).
 
+## Sample results
+
+A complete single-run campaign on the local lab is kept in [`research/results/sample-20260924T183441Z.md`](../../research/results/sample-20260924T183441Z.md) (13/13 scenarios detected, no false alerts in the quiet period). Refusals are immediate; integrity findings arrive within one poll interval plus debounce; the dosing failure is bounded by chlorine decay dynamics.
+
 ## Extending
 
 Add a `Scenario` to `research/run_experiments.py`: an action, an optional cleanup, the rule you expect and a timeout. Actions may use the fault API (`plant/faults.py`), the Modbus client bound to any loopback source address, the EWS tool or the MQTT client.

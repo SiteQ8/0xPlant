@@ -222,7 +222,7 @@ python research/run_experiments.py --list          # scenarios
 python research/run_experiments.py --runs 3        # starts the lab, runs every scenario 3 times, writes research/results/
 ```
 
-Documentation: [architecture](docs/research/architecture.md) · [threat model](docs/research/threat-model.md) · [methodology](docs/research/methodology.md) · [dataset](docs/research/dataset.md). Cite with [CITATION.cff](CITATION.cff).
+Sample campaign: [sample-20260924T183441Z.md](research/results/sample-20260924T183441Z.md). Documentation: [architecture](docs/research/architecture.md) · [threat model](docs/research/threat-model.md) · [methodology](docs/research/methodology.md) · [dataset](docs/research/dataset.md). Cite with [CITATION.cff](CITATION.cff).
 
 ---
 
