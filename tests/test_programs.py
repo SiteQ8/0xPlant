@@ -70,6 +70,7 @@ def test_treatment_dosing_controller_holds_setpoint():
 def test_treatment_high_high_chlorine_interlock_stops_dosing():
     p = Treatment(DataStore(coils=32, discrete=32, holding=256, input=64), seed=3)
     p.remote["PLC-001"] = {"LT-101": 60.0}
+    p.remote_ok["PLC-001"] = True
     for _ in range(50):
         p.execute(DT)
     p.residual = 4.5
@@ -80,6 +81,7 @@ def test_treatment_high_high_chlorine_interlock_stops_dosing():
 def test_treatment_backwash_resets_filter_dp():
     p = Treatment(DataStore(coils=32, discrete=32, holding=256, input=64), seed=3)
     p.remote["PLC-001"] = {"LT-101": 60.0}
+    p.remote_ok["PLC-001"] = True
     p.dp = 70.0
     p.execute(DT)
     assert p.get("BACKWASH_ACTIVE") == 1
@@ -91,6 +93,7 @@ def test_treatment_backwash_resets_filter_dp():
 def test_distribution_pressure_control_and_low_low_interlock():
     p = Distribution(DataStore(coils=32, discrete=32, holding=256, input=64), seed=5)
     p.remote["PLC-002"] = {"FT-201": 120.0}
+    p.remote_ok["PLC-002"] = True
     for _ in range(1500):
         p.execute(DT)
     assert abs(p.get("PT-301") - 4.0) < 0.4 and p.get("P301_RUNNING") == 1
@@ -98,3 +101,30 @@ def test_distribution_pressure_control_and_low_low_interlock():
     p.execute(DT)
     p.execute(DT)
     assert p.lall and not any(p.run) and p.store.holding[2] & 1
+
+
+def test_manual_commands_pressed_in_auto_are_discarded():
+    p = intake()
+    p.set("PUMP_START_CMD", 1)          # pressed while in AUTO
+    p.execute(DT)
+    assert p.get("PUMP_START_CMD") == 0  # consumed, not latched for a later mode change
+
+
+def test_stale_remote_values_are_not_used_without_a_healthy_link():
+    p = Distribution(DataStore(coils=32, discrete=32, holding=256, input=64), seed=5)
+    p.remote["PLC-002"] = {"FT-201": 120.0}    # value present but link not healthy
+    v0 = p.volume
+    for _ in range(20):
+        p.execute(DT)
+    assert p.volume < v0                        # no inflow was credited
+
+
+def test_lag_pump_drops_out_when_lead_pump_holds_pressure():
+    p = Distribution(DataStore(coils=32, discrete=32, holding=256, input=64), seed=5)
+    p.remote["PLC-002"] = {"FT-201": 120.0}
+    p.remote_ok["PLC-002"] = True
+    p.run = [True, True]
+    p.lag_timer = 10
+    for _ in range(600):
+        p.execute(DT)
+    assert not p.run[1]

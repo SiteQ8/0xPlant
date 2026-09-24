@@ -178,6 +178,8 @@ class Intake(Program):
 
         auto = self.coil("AUTO_MODE")
         if auto:
+            self.consume("PUMP_START_CMD")   # manual commands are discarded in AUTO, never latched for later
+            self.consume("PUMP_STOP_CMD")
             if self.level < start_sp:
                 self.pump_run = True
             elif self.level > stop_sp:
@@ -202,7 +204,7 @@ class Intake(Program):
         if self.speed_fb < 0.5:
             self.speed_fb = 0.0
         self.flow = self.PUMP_M3H * self.speed_fb / 100.0 if self.valve_open else 0.0
-        draw = self.remote_value("PLC-002", "FT-201", 0.0) if self.level > 2.0 else 0.0
+        draw = self.remote_value("PLC-002", "FT-201", 0.0) if (self.level > 2.0 and self.remote_ok.get("PLC-002")) else 0.0
         self.volume = max(0.0, min(self.TANK_M3, self.volume + (self.flow - draw) * dt_h))
         self.level = self.volume / self.TANK_M3 * 100.0
         hour = self.sim_hours % 24
@@ -315,8 +317,8 @@ class Treatment(Program):
         if self.residual >= aahh:
             self.aahh = True
 
-        upstream_level = self.remote_value("PLC-001", "LT-101", 50.0)
-        available = upstream_level > 3.0
+        upstream_level = self.remote_value("PLC-001", "LT-101", 0.0)
+        available = upstream_level > 3.0 and bool(self.remote_ok.get("PLC-001"))
         cw_stop = self.clamp_setpoint("CLEARWELL_STOP", 50.0, 97.0)
         cw_restart = self.clamp_setpoint("CLEARWELL_RESTART", 20.0, cw_stop - 5.0)
         clearwell = self.remote_value("PLC-003", "LT-301", 50.0)
@@ -328,8 +330,8 @@ class Treatment(Program):
 
         if self.consume("BACKWASH_CMD") and self.backwash_left <= 0:
             self.backwash_left = 0.1
-        if auto and self.dp >= bw_sp and self.backwash_left <= 0:
-            self.backwash_left = 0.1
+        if self.dp >= bw_sp and self.backwash_left <= 0:
+            self.backwash_left = 0.1   # filter protection runs in AUTO and MANUAL alike
         backwash = self.backwash_left > 0
 
         if auto:
@@ -474,6 +476,7 @@ class Distribution(Program):
 
         auto = self.coil("AUTO_MODE")
         if auto:
+            self.consume("STOP_ALL_CMD")
             self.run[0] = not tripped
             error = sp - self.pressure
             dt_s = dt_h * 3600.0
@@ -481,8 +484,8 @@ class Distribution(Program):
             self.speed_cmd = max(0.0, min(max_speed, 70.0 + error * 25.0 + self.integral))
             if self.pressure < sp - delta and self.run[0]:
                 self.lag_timer += 1
-            elif self.pressure > sp + delta:
-                self.lag_timer -= 1
+            elif self.pressure >= sp - delta / 4 and self.demand < self.PUMP_M3H * 0.8:
+                self.lag_timer -= 1   # one pump covers the demand with 20% margin: the lag pump can drop out
             self.lag_timer = max(-40, min(10, self.lag_timer))
             if self.lag_timer >= 10:
                 self.run[1] = True
@@ -518,7 +521,7 @@ class Distribution(Program):
         target_p = max(0.0, head - 0.00012 * self.flow ** 2 - deficit * 0.02)
         self.pressure += (target_p - self.pressure) * min(1.0, dt_h * 40.0) + self.noise(0.005)
         self.pressure = max(0.0, self.pressure)
-        inflow = self.remote_value("PLC-002", "FT-201", 0.0)
+        inflow = self.remote_value("PLC-002", "FT-201", 0.0) if self.remote_ok.get("PLC-002") else 0.0
         self.volume = max(0.0, min(self.TANK_M3, self.volume + (inflow - self.flow) * dt_h))
         self.level = self.volume / self.TANK_M3 * 100.0
         self.inflow = inflow

@@ -197,14 +197,17 @@ class TargetMonitor:
                 await self.poll()
             except Exception as exc:  # noqa: BLE001
                 self.failures += 1
-                await self.client.close()
-                if self.failures == OFFLINE_DEBOUNCE:
-                    self.online = False
-                    self.m.live[self.t.asset] = dict(self.m.live.get(self.t.asset, {}), online=False, error=str(exc), ts=time.time())
-                    self.m.emit(Event.from_rule("OXP-007", f"{self.t.asset} stopped answering integrity polls via {self.t.host}: {exc}",
-                                                asset=self.t.asset, dest_ip=self.t.host, detail={"error": str(exc)},
-                                                alert_key=f"OXP-007:{self.t.asset}"))
-                    self.m.on_asset_status(self.t.asset, "offline")
+                try:
+                    await self.client.close()
+                    if self.failures == OFFLINE_DEBOUNCE:
+                        self.online = False
+                        self.m.live[self.t.asset] = dict(self.m.live.get(self.t.asset, {}), online=False, error=str(exc), ts=time.time())
+                        self.m.emit(Event.from_rule("OXP-007", f"{self.t.asset} stopped answering integrity polls via {self.t.host}: {exc}",
+                                                    asset=self.t.asset, dest_ip=self.t.host, detail={"error": str(exc)},
+                                                    alert_key=f"OXP-007:{self.t.asset}"))
+                        self.m.on_asset_status(self.t.asset, "offline")
+                except Exception:  # noqa: BLE001 - reporting must never stop the monitor
+                    log.exception("integrity monitor could not report a failure for %s", self.t.asset)
                 await asyncio.sleep(min(5.0, 0.5 * self.failures))
             try:
                 await asyncio.wait_for(stop.wait(), timeout=self.cfg.poll_s)

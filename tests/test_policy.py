@@ -103,3 +103,15 @@ conduits:
     assert any("ranges are ignored" in p for p in problems)
     assert any("sensor_token" in p for p in problems)
     assert any("no users" in p for p in problems)
+
+
+def test_explicit_write_functions_do_not_bypass_write_ranges():
+    p = ConduitPolicy("C", "A", [SourceRule("10.0.0.5", "HMI", allow=["read"], functions=[16, 22, 23], writes={"holding": parse_ranges("100-119")})])
+    r = codec.parse_pdu
+    assert p.evaluate("10.0.0.5", r(codec.encode_write_registers(100, [1, 2]))).allowed
+    d = p.evaluate("10.0.0.5", r(codec.encode_write_registers(200, [1, 2])))
+    assert not d.allowed and d.rule == "OXP-002"
+    d = p.evaluate("10.0.0.5", r(bytes([0x16, 0, 0, 0, 0, 0, 0])))        # mask write: address not decoded -> needs full write grant
+    assert not d.allowed and d.rule == "OXP-001"
+    full = ConduitPolicy("C", "A", [SourceRule("10.0.0.6", "EWS", allow=["read", "write"], functions=[22])])
+    assert full.evaluate("10.0.0.6", r(bytes([0x16, 0, 0, 0, 0, 0, 0]))).allowed

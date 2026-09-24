@@ -46,7 +46,26 @@ class Event:
 
     @classmethod
     def from_dict(cls, d: dict) -> "Event":
+        """Build an Event from untrusted JSON: wrong types raise TypeError, strings are bounded."""
+        if not isinstance(d, dict):
+            raise TypeError("event must be an object")
         allowed = {k: d[k] for k in cls.__dataclass_fields__ if k in d}
+        for k in ("title", "severity", "category", "rule", "source_ip", "dest_ip", "asset", "protocol", "sensor", "alert_key", "resolve_key"):
+            if k in allowed and allowed[k] is not None:
+                if not isinstance(allowed[k], str):
+                    raise TypeError(f"{k} must be a string")
+                allowed[k] = allowed[k].replace("\r", " ").replace("\n", " ")[:512]
+        if "severity" in allowed and allowed["severity"] not in SEVERITY_ORDER:
+            allowed["severity"] = "info"
+        if "detail" in allowed and not isinstance(allowed["detail"], dict):
+            raise TypeError("detail must be an object")
+        if "ts" in allowed:
+            try:
+                allowed["ts"] = float(allowed["ts"])
+            except (TypeError, ValueError):
+                raise TypeError("ts must be a number")
+            if not (0 < allowed["ts"] < 4102444800):
+                allowed["ts"] = time.time()
         return cls(**allowed)
 
 

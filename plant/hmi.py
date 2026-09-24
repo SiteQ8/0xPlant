@@ -74,10 +74,9 @@ class PLCPoller:
             try:
                 await self.poll_once()
                 failures = 0
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001 - transact() already closed the socket on protocol errors
                 failures += 1
                 self.state.update({"online": False, "error": f"{type(exc).__name__}: {exc}"})
-                await self.client.close()
                 if failures in (1, 10):
                     log.warning("%s poll failed: %s", self.cfg.name, exc)
                 await asyncio.sleep(min(5.0, failures * 0.5))
@@ -173,11 +172,17 @@ def make_handler(hmi: HMI):
                 self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
 
         def do_POST(self):
+            try:
+                length = max(0, min(int(self.headers.get("Content-Length", "0") or 0), 65536))
+            except ValueError:
+                length = 0
+            raw = self.rfile.read(length) if length else b""
             if self.path != "/api/write":
                 return self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
             try:
-                length = int(self.headers.get("Content-Length", "0"))
-                data = json.loads(self.rfile.read(length) or b"{}")
+                data = json.loads(raw or b"{}")
+                if not isinstance(data, dict):
+                    raise ValueError("object expected")
                 result = hmi.write(str(data["plc"]), str(data["tag"]), float(data["value"]))
             except (KeyError, ValueError, TypeError) as exc:
                 return self._json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": f"bad request: {exc}"})

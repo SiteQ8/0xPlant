@@ -46,13 +46,15 @@ class FlowStats:
 
 class Conduit:
     def __init__(self, policy: ConduitPolicy, listen: Tuple[str, int], upstream: Tuple[str, int],
-                 bus: EventBus, sensor: str = "", upstream_timeout: float = 2.0):
+                 bus: EventBus, sensor: str = "", upstream_timeout: float = 2.0, idle_timeout: float = 120.0):
         self.policy = policy
         self.listen = listen
         self.upstream = upstream
         self.bus = bus
         self.sensor = sensor
         self.upstream_timeout = upstream_timeout
+        self.idle_timeout = idle_timeout
+        self._suppressed: Dict[Tuple[str, str], int] = {}
         self._server: Optional[asyncio.AbstractServer] = None
         self.flows: Dict[str, FlowStats] = {}
         self._seen_sources: Set[str] = set()
@@ -105,14 +107,16 @@ class Conduit:
             return
         if decision.rule == "OXP-004":
             self._last_rate_event[ip] = now
-        elif now - self._last_deny_event.get(key, 0) < 2 and decision.rule == "OXP-003":
-            return  # unknown source hammering: aggregate
+        elif now - self._last_deny_event.get(key, 0) < 2.0:
+            self._suppressed[key] = self._suppressed.get(key, 0) + 1   # a hammering source: aggregate, count, report later
+            return
         self._last_deny_event[key] = now
+        suppressed = self._suppressed.pop(key, 0)
         title = f"{decision.rule and codec.FUNCTION_NAMES.get(req.function, req.name)} from {decision.source_asset or ip} blocked on {self.policy.asset}"
         self._emit(Event.from_rule(decision.rule or "OXP-001", title, source_ip=ip, detail={
             "function": req.function, "function_name": req.name, "address": req.address,
             "quantity": req.quantity, "table": req.table, "reason": decision.reason,
-            "values": req.values[:16], "exception": decision.exception_code,
+            "values": req.values[:16], "exception": decision.exception_code, "also_blocked": suppressed,
         }, alert_key=f"{decision.rule}:{self.policy.asset}:{ip}"))
 
     # --- connection handling ---
@@ -140,9 +144,9 @@ class Conduit:
         try:
             while True:
                 try:
-                    transaction, unit, pdu = await codec.read_frame(reader)
-                except (asyncio.IncompleteReadError, ConnectionError):
-                    break
+                    transaction, unit, pdu = await asyncio.wait_for(codec.read_frame(reader), self.idle_timeout)
+                except (asyncio.IncompleteReadError, ConnectionError, asyncio.TimeoutError):
+                    break   # closed, or idle for too long: release the upstream PLC connection
                 except DecodeError as exc:
                     self._emit(Event.from_rule("OXP-011", f"Malformed frame from {source_asset or ip}", source_ip=ip,
                                                detail={"error": str(exc)}, alert_key=f"OXP-011:{self.policy.asset}:{ip}"))
@@ -157,7 +161,10 @@ class Conduit:
                                                source_ip=ip, detail={"error": str(exc), "pdu": pdu[:16].hex()},
                                                alert_key=f"OXP-011:{self.policy.asset}:{ip}"))
                     writer.write(codec.build_mbap(transaction, unit, codec.build_exception(pdu[0] if pdu else 0, codec.EXC_ILLEGAL_VALUE)))
-                    await writer.drain()
+                    try:
+                        await writer.drain()
+                    except ConnectionError:
+                        break
                     continue
                 flow.functions[req.function] = flow.functions.get(req.function, 0) + 1
                 decision = self.policy.evaluate(ip, req)
@@ -165,14 +172,19 @@ class Conduit:
                     flow.denied += 1
                     self._deny(ip, req, decision)
                     writer.write(codec.build_mbap(transaction, unit, codec.build_exception(req.function, decision.exception_code)))
-                    await writer.drain()
+                    try:
+                        await writer.drain()
+                    except ConnectionError:
+                        break
                     continue
                 # forward to the protected asset
                 response = None
+                sent = False
                 for attempt in range(2):
                     try:
                         if up_writer is None or up_writer.is_closing():
                             up_reader, up_writer = await self._open_upstream()
+                        sent = True
                         up_writer.write(codec.build_mbap(transaction, unit, pdu))
                         await up_writer.drain()
                         while True:
@@ -185,6 +197,8 @@ class Conduit:
                         if up_writer:
                             up_writer.close()
                         up_reader = up_writer = None
+                        if sent and req.is_write:
+                            attempt = 1   # never re-send a write the PLC may already have executed
                         if attempt == 1:
                             if not self._upstream_down:
                                 self._upstream_down = True

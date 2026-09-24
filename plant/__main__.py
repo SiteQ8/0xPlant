@@ -11,20 +11,22 @@ from . import config as plant_config
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="python -m plant", description="0xPlant Water Works simulator")
-    parser.add_argument("-c", "--config", default="config/plant.local.yaml", help="plant configuration file")
-    parser.add_argument("-v", "--verbose", action="store_true")
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("-c", "--config", default=None, help="plant configuration file (default config/plant.local.yaml)")
+    common.add_argument("-v", "--verbose", action="store_true")
+    parser = argparse.ArgumentParser(prog="python -m plant", description="0xPlant Water Works simulator", parents=[common])
     sub = parser.add_subparsers(dest="cmd", required=True)
-    p_plc = sub.add_parser("plc", help="run one soft PLC")
+    p_plc = sub.add_parser("plc", help="run one soft PLC", parents=[common])
     p_plc.add_argument("--name", required=True, help="PLC name from the configuration, e.g. PLC-001")
-    sub.add_parser("hmi", help="run the operator HMI")
-    p_ews = sub.add_parser("ews", help="engineering workstation tool")
+    sub.add_parser("hmi", help="run the operator HMI", parents=[common])
+    p_ews = sub.add_parser("ews", help="engineering workstation tool", parents=[common])
     p_ews.add_argument("--plc", required=True)
     p_ews.add_argument("--source-ip", default=None, help="bind outgoing connection to this address")
     p_ews.add_argument("action", choices=["read", "write", "identify", "reset"])
     p_ews.add_argument("args", nargs="*", help="tag names to read, or TAG=VALUE pairs to write")
-    sub.add_parser("tags", help="print the register map of every program")
+    sub.add_parser("tags", help="print the register map of every program", parents=[common])
     args = parser.parse_args(argv)
+    args.config = args.config or "config/plant.local.yaml"
 
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")

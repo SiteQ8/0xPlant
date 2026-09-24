@@ -33,6 +33,7 @@ assets:
   - {id: CONDUIT-003, name: "Conduit to PLC-003", type: Conduit, ip: 10.10.3.12, zone: L2, ports: [502], protocols: [Modbus/TCP]}
   - {id: HMI-001, name: "Operator Station 1",    type: HMI, ip: 10.10.3.30, zone: L2, ports: [8080], protocols: [Modbus/TCP, HTTP]}
   - {id: OXP-CONSOLE, name: "0xPlant Console",   type: Server, ip: 10.10.3.100, zone: L2, ports: [8000], protocols: [Modbus/TCP, HTTP]}
+  - {id: OXP-CONSOLE-L3, name: "0xPlant Console (L3 leg)", type: Server, ip: 10.10.4.100, zone: L3, ports: [8000], protocols: [HTTP], description: "Second interface of the console container: operator UI on Level 3"}
   - {id: EWS-001, name: "Engineering Workstation", type: EWS, ip: 10.10.3.40, zone: L3, protocols: [Modbus/TCP], description: "Dual-homed 10.10.4.40 (L3) / 10.10.3.40 (L2 leg seen by the conduits)"}
 
 # IEC 62443 conduits: the only path from Level 2/3 into Level 1.
@@ -75,8 +76,9 @@ sensors:
 
 discovery:
   - {runner: SENSOR-001, zone: L1, targets: ["10.10.1.0/24"], ports: [502, 102, 4840, 44818, 20000, 1883, 47808, 2404, 23, 21, 80], interval_s: 120}
-  - {runner: console,    zone: L2, targets: ["10.10.3.0/24"], ports: [502, 4840, 8080, 1883, 23, 21, 80, 445], interval_s: 120}
-  - {runner: console,    zone: L3, targets: ["10.10.4.0/24"], ports: [502, 8000, 8080, 3389, 445, 23, 21, 80], interval_s: 120}
+  # .1 is the Docker bridge gateway (published host ports answer there), so scopes start at .2
+  - {runner: console,    zone: L2, targets: ["10.10.3.2-10.10.3.254"], ports: [502, 4840, 8080, 1883, 23, 21, 80, 445], interval_s: 120}
+  - {runner: console,    zone: L3, targets: ["10.10.4.2-10.10.4.254"], ports: [502, 8000, 8080, 3389, 445, 23, 21, 80], interval_s: 120}
 
 # Process integrity monitoring (read-only, through the conduits)
 integrity:

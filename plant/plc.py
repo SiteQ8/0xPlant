@@ -93,6 +93,7 @@ class SoftPLC:
                 if failures == 3:
                     log.warning("%s link to %s lost: %s", self.cfg.name, name, exc)
                     self.program.remote_ok[name] = False
+                    self.program.remote.pop(name, None)   # never keep integrating a stale remote value
                 await client.close()
                 await asyncio.sleep(min(5.0, 0.5 * failures))
             await asyncio.sleep(1.0)
@@ -117,6 +118,7 @@ class SoftPLC:
         finally:
             for p in pollers:
                 p.cancel()
+            await asyncio.gather(*pollers, return_exceptions=True)
             await self.server.stop()
 
     def stop(self) -> None:

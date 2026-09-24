@@ -241,6 +241,12 @@ def validate(cfg: Config) -> List[str]:
         for r in cd.policy.rules:
             if "write" in r.allow and r.writes:
                 problems.append(f"conduit {cd.id}: rule {r.source} allows all writes, 'writes' ranges are ignored")
+            if any(fc in (5, 6, 15, 16, 22, 23) for fc in r.functions) and "write" not in r.allow:
+                problems.append(f"conduit {cd.id}: rule {r.source} lists a write function code in 'functions'; write ranges still apply and 22/23 need allow: [write]")
+    for t in cfg.integrity.targets:
+        for tag in t.tags:
+            if not tag.scale:
+                raise ValueError(f"tag {tag.name} on {t.asset} has scale 0")
     for t in cfg.integrity.targets:
         if cfg.asset(t.asset) is None:
             problems.append(f"integrity target references unknown asset {t.asset}")

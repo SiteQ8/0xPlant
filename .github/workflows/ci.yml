@@ -17,8 +17,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install -r requirements-dev.txt
-      - run: python -m oxplant policy-check -c config/oxplant.local.yaml
-      - run: OXPLANT_SENSOR_TOKEN=ci python -m oxplant policy-check -c config/oxplant.docker.yaml
+      - run: python -m oxplant -c config/oxplant.local.yaml policy-check
+      - run: OXPLANT_SENSOR_TOKEN=ci python -m oxplant -c config/oxplant.docker.yaml policy-check
       - run: pytest -q
 
   docker:

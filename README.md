@@ -46,6 +46,20 @@
 
 ---
 
+## Screenshots
+
+| 0xPlant console — dashboard | Network topology (live conduit traffic) |
+|---|---|
+| ![Dashboard](docs/screenshots/console-dashboard.png) | ![Topology](docs/screenshots/console-topology.png) |
+
+| Process integrity (dark mode, live trends) | Operator HMI (animated P&ID) |
+|---|---|
+| ![Process](docs/screenshots/console-process-dark.png) | ![HMI](docs/screenshots/hmi.png) |
+
+The console is a single page under a strict Content Security Policy with no external JavaScript: canvas charts, an SVG topology map with animated flows, detail drawers on every row, sortable and filterable tables (`/` focuses the filter), dark mode, and toasts for new critical alerts. The HMI shows an animated P&ID with running pumps, flowing pipes, tank levels, arc gauges, a trend with axes and an interlock banner.
+
+---
+
 ## Quick Start
 
 ### Docker (recommended — real network segmentation)
@@ -70,7 +84,7 @@ pip install -r requirements.txt
 python scripts/run_local.py
 ```
 
-The local runner starts the three PLCs, the sensor (three conduits), the console and the HMI as child processes on `127.0.x.y` addresses that mirror the Docker layout. Stop with `Ctrl-C`.
+The local runner starts the three PLCs, the sensor (three conduits), the console and the HMI as child processes on `127.0.x.y` addresses that mirror the Docker layout. Stop with `Ctrl-C`. Linux answers on the whole `127.0.0.0/8` range out of the box; on macOS add the aliases first (`sudo ifconfig lo0 alias 127.0.1.10` and so on for the addresses in `config/*.local.yaml`), or use Docker.
 
 ### Change the default passwords
 
@@ -177,10 +191,10 @@ Read-only polling of every PLC through its conduit:
 ### Command line
 
 ```bash
-python -m oxplant policy-check -c config/oxplant.local.yaml   # validate configuration, print policies
+python -m oxplant -c config/oxplant.local.yaml policy-check   # validate configuration, print policies
 python -m oxplant scan 10.10.1.0/24 --ports 502,102,4840      # one-off discovery
-python -m oxplant console -c config/oxplant.docker.yaml
-python -m oxplant sensor  -c config/oxplant.docker.yaml --name SENSOR-001
+python -m oxplant -c config/oxplant.docker.yaml console
+python -m oxplant -c config/oxplant.docker.yaml sensor --name SENSOR-001
 python -m oxplant hash-password
 ```
 

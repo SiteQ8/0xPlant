@@ -122,7 +122,14 @@ def test_ingest_alerts_changes_and_assets(console):
         "flows": [{"conduit": "C1", "source_ip": "10.0.3.30", "source_asset": "HMI", "asset": "PLC-1", "requests": 10, "denied": 1, "functions": {"Read Coils": 10}}],
         "assets": [{"id": "UNK-10.0.1.99", "ip": "10.0.1.99", "name": "Unknown", "type": "Unknown", "approved": False, "status": "online"}]}
     status, body, _ = s.call("POST", "/api/ingest", payload, headers={"Authorization": f"Bearer {TOKEN}"})
-    assert status == 200 and body == {"events": 2, "flows": 1, "assets": 1}
+    assert status == 200 and body == {"events": 2, "flows": 1, "assets": 1, "rejected": 0}
+    # poison records are counted and skipped, never fail the batch or crash the handler
+    bad = {"sensor": "S1", "events": [{"title": 5}, "x", {"title": "ok", "detail": "notadict"}],
+           "flows": [{"requests": "abc"}], "assets": [{"id": {"a": 1}}, {"id": "P2", "ports": ["abc"]}]}
+    status, body, _ = s.call("POST", "/api/ingest", bad, headers={"Authorization": f"Bearer {TOKEN}"})
+    assert status == 200 and body == {"events": 0, "flows": 0, "assets": 1, "rejected": 5}
+    assert s.call("POST", "/api/ingest", [1, 2], headers={"Authorization": f"Bearer {TOKEN}"})[0] == 400
+    assert s.call("POST", "/api/login", [1])[0] == 400
     c = Client(console.port)
     c.login("admin")
     summary = c.call("GET", "/api/summary")[1]
@@ -153,3 +160,7 @@ def test_ingest_alerts_changes_and_assets(console):
     assert [u["username"] for u in settings["users"]] == ["admin", "viewer", "soc"] and "password_hash" not in json.dumps(settings)
     assert len(c.call("GET", "/api/rules")[1]) >= 16
     assert c.call("GET", "/api/audit")[1]["total"] >= 5
+    assert c.call("GET", "/api/assets")[0] == 200                      # the asset with a bad port did not poison listings
+    assert c.call("POST", "/api/alerts/abc/ack", {})[0] == 400
+    assert c.call("GET", "/api/events?limit=abc")[0] == 200
+    assert c.call("POST", f"/api/alerts/{aid}/ack", {})[1]["ok"] is False   # already resolved: a real no-op now

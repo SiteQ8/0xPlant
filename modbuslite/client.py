@@ -83,13 +83,19 @@ class ModbusClient:
             return rpdu
 
     # --- reads ---
+    async def _checked(self, rpdu: bytes, expected: int) -> bytes:
+        if len(rpdu) < 2 or rpdu[1] != expected or len(rpdu) < 2 + expected:
+            await self.close()
+            raise codec.DecodeError("short or malformed read response")
+        return rpdu[2:2 + expected]
+
     async def _read_bits(self, fc: int, address: int, count: int) -> List[int]:
         rpdu = await self.transact(codec.encode_read(fc, address, count))
-        return codec.bytes_to_bits(rpdu[2:2 + rpdu[1]], count)
+        return codec.bytes_to_bits(await self._checked(rpdu, (count + 7) // 8), count)
 
     async def _read_regs(self, fc: int, address: int, count: int) -> List[int]:
         rpdu = await self.transact(codec.encode_read(fc, address, count))
-        return codec.bytes_to_regs(rpdu[2:2 + rpdu[1]])
+        return codec.bytes_to_regs(await self._checked(rpdu, count * 2))
 
     async def read_coils(self, address: int, count: int = 1) -> List[int]:
         return await self._read_bits(codec.FC_READ_COILS, address, count)
@@ -118,5 +124,12 @@ class ModbusClient:
 
     # --- identification ---
     async def read_device_identification(self, code: int = 0x02) -> Dict[str, str]:
-        rpdu = await self.transact(codec.encode_device_id(code, 0x00))
-        return codec.decode_device_id(rpdu)
+        objects: Dict[str, str] = {}
+        next_id = 0x00
+        for _ in range(8):   # follow "more follows" segments, bounded
+            rpdu = await self.transact(codec.encode_device_id(code, next_id))
+            objects.update(codec.decode_device_id(rpdu))
+            if len(rpdu) < 6 or rpdu[4] != 0xFF or rpdu[5] <= next_id:
+                break
+            next_id = rpdu[5]
+        return objects

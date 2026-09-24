@@ -58,6 +58,9 @@ class Authenticator:
         self.sessions: Dict[str, Session] = {}
         self.failures: Dict[str, List[float]] = {}
         self.lock = threading.Lock()
+        # dummy hash with the same cost as the real ones so unknown users take the same time to reject
+        iterations = max([int(h.split("$")[1]) for _, h in users.values() if h.count("$") == 3] or [600_000])
+        self._dummy = hash_password(secrets.token_hex(8), iterations)
 
     def locked_until(self, key: str) -> float:
         hits = [t for t in self.failures.get(key, []) if time.time() - t < LOCKOUT_SECONDS]
@@ -72,8 +75,9 @@ class Authenticator:
             if until:
                 return None, f"locked for {int(until - time.time())} s"
             user = self.users.get(username)
-            # verify even for unknown users to keep timing uniform
-            ok = verify_password(password, user[1]) if user else verify_password(password, hash_password("x", 1000))
+        # the expensive PBKDF2 check runs outside the lock; unknown users cost the same as real ones
+        ok = verify_password(password, user[1] if user else self._dummy)
+        with self.lock:
             if not user or not ok:
                 self.failures.setdefault(key, []).append(time.time())
                 left = LOCKOUT_ATTEMPTS - len(self.failures[key])

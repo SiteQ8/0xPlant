@@ -115,7 +115,7 @@ class Discovery:
                       "discovered_by": self.runner, "zone": (asset.zone if asset else "") or scope.zone or self.zone_for_ip(ip)}
             identity = None
             mb_port = next((p for p in ports if p in MODBUS_PORTS), None)
-            if mb_port:
+            if mb_port and not (asset and asset.type.lower() == "conduit"):   # a conduit answers with the PLC's identity
                 identity = await identify_modbus(ip, mb_port, self.source_ip)
                 if identity:
                     record.update({"vendor": identity.get("VendorName", ""), "model": identity.get("ModelName") or identity.get("ProductCode", ""),
@@ -123,10 +123,14 @@ class Discovery:
                                    "detail": {"identity": identity}})
             if asset:
                 record.update({"id": asset.id, "name": asset.name, "type": asset.type, "criticality": asset.criticality, "approved": True})
+                if self._misses.get(asset.id, 0) >= 2:
+                    self.on_event(Event(f"{asset.name} ({ip}) is answering again", "info", "AVAILABILITY", dest_ip=ip,
+                                        asset=asset.id, sensor=self.runner, resolve_key=f"OXP-007:{asset.id}"))
                 self._misses[asset.id] = 0
             else:
-                record.update({"id": f"UNK-{ip}", "name": f"Unknown device {ip}", "type": "Unknown", "criticality": "high", "approved": False})
+                record.update({"id": f"UNK-{ip}", "name": f"Unknown device {ip}", "type": "Unknown", "criticality": "high"})
                 if ip not in self._rogues:
+                    record["approved"] = False   # only on first sight: an operator approval must survive later scans
                     self._rogues.add(ip)
                     self.on_event(Event.from_rule("OXP-009", f"Rogue device {ip} exposes {', '.join(protocols)} in zone {record['zone'] or '?'}",
                                                   source_ip=ip, asset=record["id"], sensor=self.runner,

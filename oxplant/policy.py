@@ -108,8 +108,14 @@ class ConduitPolicy:
             return Decision(False, f"{name} exceeded {rule.max_rps or self.max_rps} req/s ({rate})", "OXP-004",
                             codec.EXC_DEVICE_BUSY, name)
         fc = req.function
-        if fc in rule.functions:
+        undecoded_write = fc in (codec.FC_MASK_WRITE, codec.FC_READ_WRITE_REGISTERS)
+        if fc in rule.functions and not req.is_write and not undecoded_write:
             return Decision(True, "explicit function", source_asset=name)
+        if undecoded_write:
+            # the codec does not decode addresses for these, so only a full write grant may use them
+            if "write" in rule.allow and fc in rule.functions:
+                return Decision(True, "explicit write function", source_asset=name)
+            return Decision(False, f"{name} may not use {req.name}", "OXP-001", source_asset=name)
         if req.is_read:
             if "read" in rule.allow:
                 return Decision(True, "read", source_asset=name)

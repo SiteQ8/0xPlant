@@ -12,20 +12,22 @@ from . import __version__
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="python -m oxplant", description=f"0xPlant {__version__} - ICS/OT security")
-    parser.add_argument("-c", "--config", default="config/oxplant.local.yaml")
-    parser.add_argument("-v", "--verbose", action="store_true")
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("-c", "--config", default=None, help="configuration file (default config/oxplant.local.yaml)")
+    common.add_argument("-v", "--verbose", action="store_true")
+    parser = argparse.ArgumentParser(prog="python -m oxplant", description=f"0xPlant {__version__} - ICS/OT security", parents=[common])
     sub = parser.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("console", help="run the console (web UI, API, integrity monitor, alerting)")
-    p_sensor = sub.add_parser("sensor", help="run a sensor (conduits + discovery)")
+    sub.add_parser("console", help="run the console (web UI, API, integrity monitor, alerting)", parents=[common])
+    p_sensor = sub.add_parser("sensor", help="run a sensor (conduits + discovery)", parents=[common])
     p_sensor.add_argument("--name", required=True)
-    p_scan = sub.add_parser("scan", help="one-off discovery scan")
+    p_scan = sub.add_parser("scan", help="one-off discovery scan", parents=[common])
     p_scan.add_argument("targets", nargs="*", help="IPs, CIDRs or ranges (default: all configured scopes)")
     p_scan.add_argument("--ports", default="", help="comma separated port list")
-    sub.add_parser("policy-check", help="validate the configuration and print the conduit policies")
-    sub.add_parser("hash-password", help="hash a password for the console user list")
-    sub.add_parser("version")
+    sub.add_parser("policy-check", help="validate the configuration and print the conduit policies", parents=[common])
+    sub.add_parser("hash-password", help="hash a password for the console user list", parents=[common])
+    sub.add_parser("version", parents=[common])
     args = parser.parse_args(argv)
+    args.config = args.config or "config/oxplant.local.yaml"
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 

@@ -18,10 +18,10 @@ CEF_SEVERITY = {"info": 3, "warning": 6, "critical": 9}
 
 def cef(ev: Event, site: str) -> str:
     def esc(s) -> str:
-        return str(s).replace("\\", "\\\\").replace("|", "\\|").replace("=", "\\=").replace("\n", " ")
-    ext = f"rt={int(ev.ts * 1000)} src={ev.source_ip} dst={ev.dest_ip} cs1Label=asset cs1={esc(ev.asset)} " \
+        return str(s).replace("\\", "\\\\").replace("|", "\\|").replace("=", "\\=").replace("\r", " ").replace("\n", " ")
+    ext = f"rt={int(ev.ts * 1000)} src={esc(ev.source_ip)} dst={esc(ev.dest_ip)} cs1Label=asset cs1={esc(ev.asset)} " \
           f"cs2Label=sensor cs2={esc(ev.sensor)} app={esc(ev.protocol)} cat={esc(ev.category)} msg={esc(json.dumps(ev.detail))}"
-    return f"CEF:0|0xPlant|{esc(site)}|2.0|{ev.rule or ev.category}|{esc(ev.title)}|{CEF_SEVERITY.get(ev.severity, 3)}|{ext}"
+    return f"CEF:0|0xPlant|{esc(site)}|2.0|{esc(ev.rule or ev.category)}|{esc(ev.title)}|{CEF_SEVERITY.get(ev.severity, 3)}|{ext}"
 
 
 class Outputs:

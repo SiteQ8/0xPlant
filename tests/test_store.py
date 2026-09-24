@@ -54,3 +54,22 @@ def test_asset_merge_flows_audit_and_purge():
     s.sensor_seen("S1", 3)
     s.sensor_seen("S1", 2)
     assert s.list_sensors()[0]["events"] == 5
+
+
+def test_updates_report_real_row_counts_after_inserts():
+    s = Store(":memory:")
+    s.add_event(Event("seed"))
+    assert not s.set_alert_status(12345, "acknowledged", "soc")
+    assert not s.approve_asset("nope", True)
+    assert not s.review_change(999, "approved", "eng")
+    assert s.resolve_alert_key("nokey", "x") == 0
+
+
+def test_discovery_cannot_revert_an_operator_approval():
+    s = Store(":memory:")
+    s.upsert_asset({"id": "UNK-1", "ip": "10.0.0.9", "approved": False, "status": "online"})
+    assert s.approve_asset("UNK-1", True)
+    s.upsert_asset({"id": "UNK-1", "ip": "10.0.0.9", "approved": False, "status": "online"})   # next scan
+    assert s.get_asset("UNK-1")["approved"]
+    s.upsert_asset({"id": "BAD", "ip": "10.0.0.8", "ports": ["abc", 502, 70000], "protocols": "x"})
+    assert s.get_asset("BAD")["ports"] == [502] and s.list_assets()

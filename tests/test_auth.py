@@ -26,3 +26,11 @@ def test_login_sessions_roles_and_lockout():
     assert s is not None
     s, reason = a.login("ghost", "pw", "10.0.0.3")
     assert s is None and reason == "invalid credentials"
+
+
+def test_unknown_users_cost_as_much_as_real_ones():
+    import time
+    a = Authenticator({"admin": ("admin", hash_password("pw", 200_000))}, session_ttl=60)
+    t0 = time.perf_counter(); a.login("admin", "bad", "1.1.1.1"); t1 = time.perf_counter(); a.login("ghost", "bad", "1.1.1.1"); t2 = time.perf_counter()
+    real, unknown = t1 - t0, t2 - t1
+    assert unknown > real * 0.5           # same PBKDF2 cost, not a 1 000-iteration shortcut

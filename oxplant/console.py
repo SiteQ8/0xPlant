@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import logging
 import os
@@ -65,24 +66,36 @@ class Console:
                                  "status": "online", "last_seen": time.time(), "detail": {"identity": ident}})
 
     def ingest(self, payload: dict, sensor: str) -> Dict[str, int]:
-        n = {"events": 0, "flows": 0, "assets": 0}
-        for d in payload.get("events", []) or []:
+        """Store a sensor batch. Malformed records are counted and skipped; one bad record never fails the batch."""
+        n = {"events": 0, "flows": 0, "assets": 0, "rejected": 0}
+        lists = {k: (payload.get(k) if isinstance(payload.get(k), list) else []) for k in ("events", "flows", "assets")}
+        for d in lists["events"][:5000]:
             try:
                 ev = Event.from_dict(d)
-            except TypeError:
-                continue
-            ev.sensor = ev.sensor or sensor
-            self.bus.publish(ev)
-            n["events"] += 1
-        for f in payload.get("flows", []) or []:
-            if isinstance(f, dict):
+                ev.sensor = ev.sensor or sensor
+                self.bus.publish(ev)
+                n["events"] += 1
+            except (TypeError, ValueError):
+                n["rejected"] += 1
+        for f in lists["flows"][:5000]:
+            try:
+                if not isinstance(f, dict):
+                    raise TypeError("flow must be an object")
                 self.store.upsert_flow(dict(f, sensor=sensor))
                 n["flows"] += 1
-        for a in payload.get("assets", []) or []:
-            if isinstance(a, dict) and a.get("id"):
+            except (TypeError, ValueError, OverflowError):
+                n["rejected"] += 1
+        for a in lists["assets"][:5000]:
+            try:
+                if not isinstance(a, dict) or not isinstance(a.get("id"), str) or not a["id"]:
+                    raise TypeError("asset must be an object with a string id")
                 a.setdefault("discovered_by", sensor)
                 self.store.upsert_asset(a)
                 n["assets"] += 1
+            except (TypeError, ValueError, OverflowError):
+                n["rejected"] += 1
+        if n["rejected"]:
+            log.warning("sensor %s sent %d malformed record(s)", sensor, n["rejected"])
         self.store.sensor_seen(sensor, n["events"], {"last_batch": n})
         self.ingested += n["events"]
         return n
@@ -122,7 +135,7 @@ class Console:
             "sensors": self.store.list_sensors(), "conduits": conduits, "zones": zones,
             "recent": self.store.list_events(8),
             "process": {k: {"online": v.get("online"), "excursions": sum(1 for t in v.get("tags", {}).values() if t["status"] not in ("ok",))}
-                        for k, v in self.integrity.live.items()},
+                        for k, v in list(self.integrity.live.items())},
             "outputs": {"syslog": bool(self.cfg.console.outputs.syslog_host), "webhook": bool(self.cfg.console.outputs.webhook_url)},
         }
 
@@ -153,7 +166,7 @@ class Console:
             "retention_days": self.store.retention_days, "tls": bool(c.tls_cert), "session_hours": c.session_hours,
             "users": [{"username": u.username, "role": u.role} for u in c.users],
             "outputs": {"syslog": f"{c.outputs.syslog_host}:{c.outputs.syslog_port}" if c.outputs.syslog_host else "",
-                        "webhook": c.outputs.webhook_url, "min_severity": c.outputs.min_severity,
+                        "webhook": _mask_url(c.outputs.webhook_url), "min_severity": c.outputs.min_severity,
                         "sent_syslog": self.outputs.sent_syslog, "sent_webhook": self.outputs.sent_webhook},
             "discovery": [{"runner": d.runner, "zone": d.zone, "targets": d.targets, "ports": d.ports, "interval_s": d.interval_s} for d in self.cfg.discovery],
             "integrity": {"source_ip": self.cfg.integrity.source_ip, "poll_s": self.cfg.integrity.poll_s,
@@ -201,6 +214,21 @@ class Console:
             httpd.shutdown()
 
 
+def _mask_url(url: str) -> str:
+    """Show only the scheme and host of a webhook URL: paths often carry secrets."""
+    if not url:
+        return ""
+    u = urlparse(url)
+    return f"{u.scheme}://{u.netloc}/…" if u.netloc else "configured"
+
+
+def _qint(q: dict, key: str, default: int, lo: int, hi: int) -> int:
+    try:
+        return max(lo, min(hi, int(q.get(key, default))))
+    except (TypeError, ValueError):
+        return default
+
+
 def make_handler(console: Console):
     store, auth, cfg = console.store, console.auth, console.cfg
     secure_cookie = bool(cfg.console.tls_cert)
@@ -241,11 +269,17 @@ def make_handler(console: Console):
             self._send(code, json.dumps(payload, default=str).encode(), extra=extra)
 
         def _body(self) -> dict:
-            length = int(self.headers.get("Content-Length", "0") or 0)
-            if length > 4_000_000:
+            try:
+                length = int(self.headers.get("Content-Length", "0") or 0)
+            except ValueError:
+                raise ValueError("bad content length")
+            if length < 0 or length > 4_000_000:
                 raise ValueError("body too large")
             data = self.rfile.read(length) if length else b""
-            return json.loads(data or b"{}")
+            body = json.loads(data or b"{}")
+            if not isinstance(body, dict):
+                raise ValueError("body must be a JSON object")
+            return body
 
         def _same_origin(self) -> bool:
             if self.headers.get("X-Requested-With") not in ("XMLHttpRequest", "oxplant-sensor"):
@@ -287,17 +321,18 @@ def make_handler(console: Console):
             s = self._require("view")
             if not s:
                 return None
-            limit = int(q.get("limit", 200))
+            limit = _qint(q, "limit", 200, 1, 2000)
+            since = float(_qint(q, "since", 0, 0, 4102444800))
             routes = {
                 "/api/summary": lambda: console.summary(),
                 "/api/assets": lambda: store.list_assets(),
-                "/api/events": lambda: store.list_events(limit, q.get("severity", ""), q.get("category", ""), q.get("asset", ""), q.get("rule", ""), float(q.get("since", 0))),
+                "/api/events": lambda: store.list_events(limit, q.get("severity", "")[:16], q.get("category", "")[:32], q.get("asset", "")[:128], q.get("rule", "")[:16], since),
                 "/api/alerts": lambda: store.list_alerts(q.get("status", ""), limit),
                 "/api/changes": lambda: store.list_changes(limit, q.get("status", "")),
                 "/api/flows": lambda: store.list_flows(),
                 "/api/protocols": lambda: console.protocols(),
                 "/api/policy": lambda: console.policy(),
-                "/api/process": lambda: console.integrity.live,
+                "/api/process": lambda: dict(console.integrity.live),
                 "/api/audit": lambda: {"total": store.audit_count(), "entries": store.list_audit(limit)},
                 "/api/sensors": lambda: store.list_sensors(),
                 "/api/settings": lambda: console.settings(),
@@ -312,23 +347,20 @@ def make_handler(console: Console):
         def do_POST(self):
             path = urlparse(self.path).path
             ip = self._client_ip()
+            try:
+                body = self._body()          # always consume the body first: keep-alive connections stay in sync
+            except ValueError as exc:
+                self.close_connection = True
+                return self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             if path == "/api/ingest":
                 token = self.headers.get("Authorization", "")
-                if not cfg.console.sensor_token or token != f"Bearer {cfg.console.sensor_token}":
+                if not cfg.console.sensor_token or not hmac.compare_digest(token, f"Bearer {cfg.console.sensor_token}"):
                     store.audit("sensor", "ingest", path, "unauthorized", ip)
                     return self._json(HTTPStatus.UNAUTHORIZED, {"error": "bad sensor token"})
-                try:
-                    payload = self._body()
-                except ValueError as exc:
-                    return self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
-                sensor = str(payload.get("sensor", "unknown"))[:64]
-                return self._json(HTTPStatus.OK, console.ingest(payload, sensor))
+                sensor = str(body.get("sensor", "unknown"))[:64]
+                return self._json(HTTPStatus.OK, console.ingest(body, sensor))
             if not self._same_origin():
                 return self._json(HTTPStatus.FORBIDDEN, {"error": "cross-site request refused"})
-            try:
-                body = self._body()
-            except ValueError as exc:
-                return self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             if path == "/api/login":
                 username = str(body.get("username", ""))[:64]
                 session, reason = auth.login(username, str(body.get("password", "")), ip)
@@ -350,6 +382,8 @@ def make_handler(console: Console):
                     auth.logout(s.token)
                 return self._json(HTTPStatus.OK, {"ok": True}, {"Set-Cookie": "oxp_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict"})
             parts = path.strip("/").split("/")
+            if len(parts) == 4 and parts[1] in ("alerts", "changes") and not parts[2].isdigit():
+                return self._json(HTTPStatus.BAD_REQUEST, {"error": "numeric id expected"})
             if len(parts) == 4 and parts[1] == "alerts" and parts[3] in ("ack", "resolve"):
                 perm = "ack_alerts" if parts[3] == "ack" else "resolve_alerts"
                 s = self._require(perm)

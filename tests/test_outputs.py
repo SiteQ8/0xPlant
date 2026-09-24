@@ -47,3 +47,9 @@ def test_syslog_and_webhook_delivery():
     assert received and received[0]["event"]["rule"] == "OXP-005" and received[0]["site"] == "Test"
     assert out.sent_syslog == 1 and out.sent_webhook == 1
     httpd.shutdown()
+
+
+def test_cef_escapes_every_attacker_controlled_field():
+    ev = Event("t\rx", rule="OXP-002|Fake|9", source_ip="1.2.3.4 suser=admin", dest_ip="5|6", asset="A")
+    line = cef(ev, "S")
+    assert "|OXP-002\\|Fake\\|9|" in line and "src=1.2.3.4 suser\\=admin" in line and "dst=5\\|6" in line and "\r" not in line

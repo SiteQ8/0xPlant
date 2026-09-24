@@ -49,7 +49,7 @@ def _row(cur, row) -> dict:
         if k in d and isinstance(d[k], str):
             d[k] = [p for p in d[k].split(",") if p]
             if k == "ports":
-                d[k] = [int(p) for p in d[k]]
+                d[k] = [int(p) for p in d[k] if p.isdigit()]
     if "approved" in d:
         d["approved"] = bool(d["approved"])
     return d
@@ -77,9 +77,10 @@ class Store:
             return [_row(cur, r) for r in cur.fetchall()]
 
     def _x(self, sql: str, args: tuple = ()) -> int:
+        """Execute a write. Returns the new row id for INSERTs and the affected row count otherwise."""
         with self._lock:
             cur = self._db.execute(sql, args)
-            return cur.lastrowid or cur.rowcount
+            return cur.lastrowid if sql.lstrip().upper().startswith("INSERT") else cur.rowcount
 
     # --- events & alerts ---
     def add_event(self, ev: Event) -> int:
@@ -123,10 +124,11 @@ class Store:
                 sql += f" AND {col}=?"
                 args.append(val)
         sql += " ORDER BY id DESC LIMIT ?"
-        args.append(min(int(limit), 2000))
+        args.append(max(1, min(int(limit), 2000)))
         return self._q(sql, tuple(args))
 
     def list_alerts(self, status: str = "", limit: int = 200) -> List[dict]:
+        limit = max(1, min(int(limit), 2000))
         if status == "open":
             return self._q("SELECT * FROM alerts WHERE status IN ('active','acknowledged') ORDER BY last_ts DESC LIMIT ?", (limit,))
         if status:
@@ -155,6 +157,7 @@ class Store:
                        (time.time(), asset, tag, kind, old, new, source_ip, source_asset, status, note))
 
     def list_changes(self, limit: int = 200, status: str = "") -> List[dict]:
+        limit = max(1, min(int(limit), 2000))
         if status:
             return self._q("SELECT * FROM changes WHERE status=? ORDER BY id DESC LIMIT ?", (status, limit))
         return self._q("SELECT * FROM changes ORDER BY id DESC LIMIT ?", (limit,))
@@ -178,9 +181,20 @@ class Store:
     # --- assets ---
     def upsert_asset(self, rec: Dict[str, Any]) -> None:
         now = time.time()
+        rec = dict(rec)
+        rec["id"] = str(rec["id"])[:128]
+        rec["ports"] = sorted({int(p) for p in (rec.get("ports") or []) if str(p).isdigit() and 0 < int(p) < 65536})
+        rec["protocols"] = [str(p)[:64] for p in (rec.get("protocols") or []) if isinstance(p, (str, int))][:32]
+        for k in ("name", "type", "ip", "zone", "criticality", "vendor", "model", "firmware", "application", "status", "discovered_by"):
+            if k in rec and rec[k] is not None:
+                rec[k] = str(rec[k])[:256]
+        if not isinstance(rec.get("detail", {}), dict):
+            rec["detail"] = {}
         with self._lock:
             existing = self._q("SELECT * FROM assets WHERE id=?", (rec["id"],))
             merged = dict(existing[0]) if existing else {"first_seen": rec.get("first_seen", now), "approved": rec.get("approved", True)}
+            if existing:
+                rec.pop("approved", None)   # approval is an operator decision, never overwritten by discovery
             for k, v in rec.items():
                 if v not in (None, "", [], {}) or k in ("status",):
                     merged[k] = v
@@ -210,13 +224,18 @@ class Store:
     # --- flows ---
     def upsert_flow(self, rec: dict) -> None:
         key = f"{rec.get('conduit','')}:{rec.get('source_ip','')}:{rec.get('asset','')}"
+        try:
+            requests, denied = int(rec.get("requests", 0)), int(rec.get("denied", 0))
+            first_seen, last_seen = float(rec.get("first_seen", time.time())), float(rec.get("last_seen", time.time()))
+        except (TypeError, ValueError):
+            raise ValueError("flow record has non-numeric counters")
+        functions = rec.get("functions") if isinstance(rec.get("functions"), dict) else {}
         self._x("""INSERT INTO flows (key,source_ip,source_asset,asset,conduit,protocol,first_seen,last_seen,requests,denied,functions,sensor)
                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
                    ON CONFLICT(key) DO UPDATE SET source_asset=excluded.source_asset, last_seen=excluded.last_seen,
                    requests=excluded.requests, denied=excluded.denied, functions=excluded.functions, sensor=excluded.sensor""",
-                (key, rec.get("source_ip", ""), rec.get("source_asset", ""), rec.get("asset", ""), rec.get("conduit", ""),
-                 rec.get("protocol", "Modbus/TCP"), rec.get("first_seen", time.time()), rec.get("last_seen", time.time()),
-                 int(rec.get("requests", 0)), int(rec.get("denied", 0)), json.dumps(rec.get("functions", {})), rec.get("sensor", "")))
+                (key, str(rec.get("source_ip", ""))[:64], str(rec.get("source_asset", ""))[:128], str(rec.get("asset", ""))[:128], str(rec.get("conduit", ""))[:128],
+                 str(rec.get("protocol", "Modbus/TCP"))[:64], first_seen, last_seen, requests, denied, json.dumps(functions), str(rec.get("sensor", ""))[:64]))
 
     def list_flows(self) -> List[dict]:
         return self._q("SELECT * FROM flows ORDER BY last_seen DESC")
@@ -235,6 +254,7 @@ class Store:
                 (time.time(), user, action, target, result, ip, json.dumps(detail or {})))
 
     def list_audit(self, limit: int = 200) -> List[dict]:
+        limit = max(1, min(int(limit), 2000))
         return self._q("SELECT * FROM audit ORDER BY id DESC LIMIT ?", (limit,))
 
     def audit_count(self) -> int:

@@ -7,122 +7,125 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%230EA5E9'/><text x='8' y='12' text-anchor='middle' font-size='7' fill='%23000' font-weight='bold'>WW</text></svg>">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0B1220;--panel:#111A2E;--panel2:#16213A;--line:#243352;--text:#E2E8F0;--muted:#94A3B8;--ok:#22C55E;--warn:#F59E0B;--bad:#EF4444;--blue:#38BDF8;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--sans:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px}
-header{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
-header h1{font-size:1.05rem;font-family:var(--mono);color:var(--blue)}
-header h1 span{color:var(--muted);font-weight:400;font-size:.8rem;margin-left:8px}
-.status{display:flex;gap:14px;font-family:var(--mono);font-size:.75rem;color:var(--muted);align-items:center}
-.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad);margin-right:5px}
-.dot.on{background:var(--ok)}
-main{padding:16px 20px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-@media(max-width:1100px){main{grid-template-columns:1fr}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.card h2{font-size:.85rem;font-family:var(--mono);padding:10px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
-.card h2 small{color:var(--muted);font-weight:400}
-.pid{padding:10px 14px}
-svg{width:100%;height:190px;display:block}
-.vals{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;padding:6px 14px 12px;font-family:var(--mono);font-size:.78rem}
-.vals div{display:flex;justify-content:space-between;border-bottom:1px dashed var(--line);padding:3px 0}
-.vals b{color:var(--blue);font-weight:600}
-.vals .a{color:var(--bad)}
-.ctl{padding:10px 14px;border-top:1px solid var(--line);background:var(--panel2)}
+:root{--bg:#0B1220;--panel:#111A2E;--panel2:#16213A;--line:#243352;--text:#E2E8F0;--muted:#94A3B8;--ok:#22C55E;--warn:#F59E0B;--bad:#EF4444;--blue:#38BDF8;--water:#0EA5E9;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--sans:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body{background:radial-gradient(1200px 500px at 80% -10%,#12233f 0%,var(--bg) 60%);color:var(--text);font-family:var(--sans);font-size:14px;min-height:100vh}
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 22px;background:rgba(17,26,46,.9);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+header h1{font-size:1.05rem;font-family:var(--mono);color:var(--blue);display:flex;align-items:center;gap:10px}
+header h1 i{width:28px;height:28px;border-radius:7px;background:var(--water);color:#04253a;display:grid;place-items:center;font-size:.65rem;font-style:normal;font-weight:800}
+header h1 span{color:var(--muted);font-weight:400;font-size:.78rem}
+.status{display:flex;gap:16px;font-family:var(--mono);font-size:.74rem;color:var(--muted);align-items:center}
+.status b{color:var(--text)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad);margin-right:6px;box-shadow:0 0 0 3px rgba(239,68,68,.15)}
+.dot.on{background:var(--ok);box-shadow:0 0 0 3px rgba(34,197,94,.18)}
+#banner{display:none;margin:14px 22px 0;padding:10px 16px;border-radius:10px;border:1px solid var(--bad);background:rgba(239,68,68,.12);color:#FCA5A5;font-family:var(--mono);font-size:.8rem;animation:blink 1.4s infinite}
+#banner.on{display:flex;justify-content:space-between;align-items:center}
+@keyframes blink{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.35)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}
+main{padding:16px 22px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:1200px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 10px 30px -18px rgba(0,0,0,.8)}
+.card h2{font-size:.86rem;font-family:var(--mono);padding:11px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,rgba(255,255,255,.03),transparent)}
+.pid{padding:10px 12px 4px}
+svg.pid-svg{width:100%;height:210px;display:block}
+.pipe{stroke:#3B4C6E;stroke-width:5;fill:none;stroke-linecap:round}
+.pipe-flow{stroke:var(--water);stroke-width:3;fill:none;stroke-dasharray:7 9;stroke-linecap:round;opacity:0;transition:opacity .3s}
+.pipe-flow.on{opacity:1;animation:flow 1s linear infinite}
+.pipe-flow.chem{stroke:#F59E0B}
+@keyframes flow{to{stroke-dashoffset:-32}}
+.pump .body{fill:#334155;stroke:#94A3B8;stroke-width:1.5;transition:fill .3s}
+.pump.on .body{fill:#16A34A}
+.pump .imp{stroke:#E2E8F0;stroke-width:2;fill:none;transform-box:fill-box;transform-origin:center}
+.pump.on .imp{animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.valve{fill:#334155;stroke:#94A3B8;stroke-width:1.5;transition:fill .3s}.valve.on{fill:var(--water)}
+.tank{fill:#0B1220;stroke:#94A3B8;stroke-width:1.5}
+.level{fill:url(#waterGrad);transition:height .5s,y .5s}
+.lbl{font-family:var(--mono);font-size:9px;fill:#94A3B8}.val{font-family:var(--mono);font-size:13px;fill:#fff;font-weight:700}
+.filter{fill:#1E293B;stroke:#94A3B8;stroke-width:1.5;transition:fill .3s}.filter.bw{fill:#7C3AED}
+.gauges{display:flex;gap:10px;padding:0 12px 6px;justify-content:space-around}
+.gauge{width:110px;text-align:center}.gauge svg{width:110px;height:64px;display:block}.gauge .g-val{font-family:var(--mono);font-size:.9rem;font-weight:700;margin-top:-18px}.gauge .g-lbl{font-size:.64rem;color:var(--muted);font-family:var(--mono)}
+.vals{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px;padding:6px 14px 10px;font-family:var(--mono);font-size:.76rem}
+.vals div{display:flex;justify-content:space-between;border-bottom:1px dashed var(--line);padding:3px 0}.vals b{color:var(--blue);font-weight:600}
+.ctl{padding:10px 14px 12px;border-top:1px solid var(--line);background:var(--panel2)}
 .ctl .row{display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap}
 .ctl label{font-size:.72rem;color:var(--muted);min-width:150px}
-.ctl input{width:84px;padding:5px 8px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:.78rem}
-button{padding:5px 10px;border-radius:6px;border:1px solid var(--line);background:#1E293B;color:var(--text);cursor:pointer;font-size:.75rem}
-button:hover{border-color:var(--blue)}
-button.primary{background:#0369A1;border-color:#0EA5E9}
-button.danger{background:#7F1D1D;border-color:#EF4444}
-.mode{font-family:var(--mono);font-size:.7rem;padding:2px 8px;border-radius:10px;border:1px solid var(--line)}
-.mode.auto{color:var(--ok);border-color:var(--ok)}
-.mode.man{color:var(--warn);border-color:var(--warn)}
-#alarms{grid-column:1/-1}
-#alarms ul{list-style:none;padding:8px 14px;font-family:var(--mono);font-size:.78rem}
-#alarms li{padding:4px 0;border-bottom:1px dashed var(--line)}
-#alarms li.trip{color:var(--bad)} #alarms li.alarm{color:var(--warn)} #alarms li.none{color:var(--ok)}
-#trend{grid-column:1/-1}
-canvas{width:100%;height:160px;display:block;padding:8px 14px}
-#toast{position:fixed;right:20px;bottom:20px;padding:10px 14px;border-radius:8px;background:#1E293B;border:1px solid var(--line);font-size:.8rem;display:none;max-width:420px}
+.ctl input{width:84px;padding:6px 8px;background:var(--bg);border:1px solid var(--line);border-radius:7px;color:var(--text);font-family:var(--mono);font-size:.78rem;outline:none}.ctl input:focus{border-color:var(--blue)}
+button{padding:6px 11px;border-radius:7px;border:1px solid var(--line);background:#1E293B;color:var(--text);cursor:pointer;font-size:.75rem;transition:transform .08s,border-color .15s}
+button:hover{border-color:var(--blue)}button:active{transform:scale(.97)}
+button.primary{background:#0369A1;border-color:#0EA5E9}button.danger{background:#7F1D1D;border-color:#EF4444}button.sel{outline:2px solid var(--blue)}
+.mode{font-family:var(--mono);font-size:.68rem;padding:2px 9px;border-radius:10px;border:1px solid var(--line)}
+.mode.auto{color:var(--ok);border-color:var(--ok);background:rgba(34,197,94,.1)}.mode.man{color:var(--warn);border-color:var(--warn);background:rgba(245,158,11,.1)}
+#alarms{grid-column:1/-1}#alarms ul{list-style:none;padding:8px 14px;font-family:var(--mono);font-size:.78rem}
+#alarms li{padding:5px 0;border-bottom:1px dashed var(--line);display:flex;gap:10px;align-items:center}#alarms li::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+#alarms li.trip{color:#FCA5A5}#alarms li.alarm{color:#FCD34D}#alarms li.none{color:#86EFAC}
+#trend{grid-column:1/-1}canvas{width:100%;height:190px;display:block;padding:8px 14px}
+#toast{position:fixed;right:20px;bottom:20px;padding:10px 14px;border-radius:8px;background:#1E293B;border:1px solid var(--line);font-size:.8rem;display:none;max-width:460px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 #toast.err{border-color:var(--bad);color:#FCA5A5}#toast.ok{border-color:var(--ok);color:#86EFAC}
-footer{padding:8px 20px;color:var(--muted);font-size:.7rem;font-family:var(--mono)}
+footer{padding:10px 22px;color:var(--muted);font-size:.7rem;font-family:var(--mono)}
 </style>
 </head>
 <body>
 <header>
-  <h1>0xPlant Water Works <span>Operator HMI · HMI-001</span></h1>
-  <div class="status">
-    <span>SIM CLOCK <b id="clock">--:--</b></span>
-    <span id="links"></span>
-  </div>
+  <h1><i>WW</i>0xPlant Water Works <span>Operator HMI · HMI-001</span></h1>
+  <div class="status"><span>SIM CLOCK <b id="clock">--:--</b></span><span id="links"></span></div>
 </header>
+<div id="banner"><span id="bannerText"></span><span>ACTIVE INTERLOCK — operator action required</span></div>
 <main>
-  <div class="card" id="c-intake"><h2>INTAKE — PLC-001 <span class="mode" id="m-PLC-001">…</span></h2>
-    <div class="pid"><svg viewBox="0 0 320 190">
-      <text x="10" y="18" fill="#94A3B8" font-size="10" font-family="monospace">RIVER</text>
-      <path d="M10 26 Q 30 20 50 26 T 90 26" stroke="#38BDF8" fill="none" stroke-width="2"/>
-      <circle id="p101" cx="120" cy="60" r="16" fill="#334155" stroke="#94A3B8"/><text x="120" y="64" fill="#fff" font-size="9" text-anchor="middle" font-family="monospace">P-101</text>
-      <line x1="90" y1="26" x2="90" y2="60" stroke="#94A3B8" stroke-width="2"/><line x1="90" y1="60" x2="104" y2="60" stroke="#94A3B8" stroke-width="2"/>
-      <line x1="136" y1="60" x2="180" y2="60" stroke="#94A3B8" stroke-width="2"/>
-      <rect id="mov101" x="180" y="52" width="16" height="16" fill="#334155" stroke="#94A3B8"/><text x="188" y="48" fill="#94A3B8" font-size="8" text-anchor="middle" font-family="monospace">MOV-101</text>
-      <line x1="196" y1="60" x2="240" y2="60" stroke="#94A3B8" stroke-width="2"/><line x1="240" y1="60" x2="240" y2="80" stroke="#94A3B8" stroke-width="2"/>
-      <rect x="200" y="80" width="80" height="90" fill="#0B1220" stroke="#94A3B8"/>
-      <rect id="t101" x="201" y="169" width="78" height="0" fill="#0EA5E9" opacity=".8"/>
-      <text x="240" y="184" fill="#94A3B8" font-size="9" text-anchor="middle" font-family="monospace">T-101 INTAKE TANK</text>
-      <text id="lt101" x="240" y="128" fill="#fff" font-size="13" text-anchor="middle" font-family="monospace" font-weight="bold">--%</text>
-      <line x1="280" y1="150" x2="310" y2="150" stroke="#94A3B8" stroke-width="2"/><text x="296" y="145" fill="#94A3B8" font-size="8" text-anchor="middle" font-family="monospace">to F-201</text>
+  <div class="card"><h2>INTAKE — PLC-001 <span class="mode" id="m-PLC-001">…</span></h2>
+    <div class="pid"><svg class="pid-svg" viewBox="0 0 320 210">
+      <defs><linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#38BDF8"/><stop offset="1" stop-color="#0369A1"/></linearGradient></defs>
+      <text x="10" y="18" class="lbl">RIVER</text><path d="M10 26 Q 30 20 50 26 T 90 26" stroke="#38BDF8" fill="none" stroke-width="2"/>
+      <path id="pi1" class="pipe" d="M90 26 V60 H104"/><path class="pipe-flow" data-flow="i1" d="M90 26 V60 H104"/>
+      <g class="pump" id="p101"><circle class="body" cx="120" cy="60" r="16"/><g class="imp"><path d="M120 48 L120 72 M108 60 L132 60 M111.5 51.5 L128.5 68.5 M128.5 51.5 L111.5 68.5"/></g></g><text x="120" y="88" class="lbl" text-anchor="middle">P-101</text>
+      <path class="pipe" d="M136 60 H180"/><path class="pipe-flow" data-flow="i1" d="M136 60 H180"/>
+      <rect id="mov101" class="valve" x="180" y="52" width="16" height="16"/><text x="188" y="46" class="lbl" text-anchor="middle">MOV-101</text>
+      <path class="pipe" d="M196 60 H240 V80"/><path class="pipe-flow" data-flow="i1" d="M196 60 H240 V80"/>
+      <rect class="tank" x="200" y="80" width="80" height="95"/><rect id="t101" class="level" x="201" y="174" width="78" height="0"/>
+      <text x="240" y="190" class="lbl" text-anchor="middle">T-101 INTAKE TANK</text><text id="lt101" x="240" y="132" class="val" text-anchor="middle">--%</text>
+      <path class="pipe" d="M280 150 H312"/><path class="pipe-flow" data-flow="i2" d="M280 150 H312"/><text x="296" y="144" class="lbl" text-anchor="middle">to F-201</text>
     </svg></div>
-    <div class="vals" id="v-PLC-001"></div>
-    <div class="ctl" id="k-PLC-001"></div>
+    <div class="gauges"><div class="gauge" data-gauge="PLC-001|LT-101|0|100|%"></div><div class="gauge" data-gauge="PLC-001|FT-101|0|160|m3/h"></div><div class="gauge" data-gauge="PLC-001|AT-101|0|25|NTU"></div></div>
+    <div class="vals" id="v-PLC-001"></div><div class="ctl" id="k-PLC-001"></div>
   </div>
-  <div class="card" id="c-treat"><h2>TREATMENT — PLC-002 <span class="mode" id="m-PLC-002">…</span></h2>
-    <div class="pid"><svg viewBox="0 0 320 190">
-      <line x1="10" y1="60" x2="40" y2="60" stroke="#94A3B8" stroke-width="2"/><text x="24" y="52" fill="#94A3B8" font-size="8" text-anchor="middle" font-family="monospace">from T-101</text>
-      <circle id="p202" cx="56" cy="60" r="16" fill="#334155" stroke="#94A3B8"/><text x="56" y="64" fill="#fff" font-size="9" text-anchor="middle" font-family="monospace">P-202</text>
-      <line x1="72" y1="60" x2="110" y2="60" stroke="#94A3B8" stroke-width="2"/>
-      <rect id="f201" x="110" y="35" width="60" height="50" fill="#1E293B" stroke="#94A3B8"/><text x="140" y="56" fill="#fff" font-size="9" text-anchor="middle" font-family="monospace">F-201</text><text id="pdt201" x="140" y="70" fill="#fff" font-size="9" text-anchor="middle" font-family="monospace">-- kPa</text>
-      <line x1="170" y1="60" x2="230" y2="60" stroke="#94A3B8" stroke-width="2"/>
-      <circle id="p201" cx="200" cy="20" r="12" fill="#334155" stroke="#94A3B8"/><text x="200" y="23" fill="#fff" font-size="8" text-anchor="middle" font-family="monospace">P-201</text>
-      <line x1="200" y1="32" x2="200" y2="60" stroke="#F59E0B" stroke-width="2" stroke-dasharray="3 2"/><text x="222" y="24" fill="#94A3B8" font-size="8" font-family="monospace">Cl2</text>
-      <rect x="230" y="40" width="80" height="120" fill="#0B1220" stroke="#94A3B8"/>
-      <rect id="t201" x="231" y="159" width="78" height="0" fill="#0EA5E9" opacity=".8"/>
-      <text x="270" y="176" fill="#94A3B8" font-size="9" text-anchor="middle" font-family="monospace">T-201 CONTACT TANK</text>
-      <text id="at201" x="270" y="95" fill="#fff" font-size="13" text-anchor="middle" font-family="monospace" font-weight="bold">-- mg/L</text>
-      <text id="at202" x="270" y="112" fill="#94A3B8" font-size="9" text-anchor="middle" font-family="monospace">pH --</text>
+  <div class="card"><h2>TREATMENT — PLC-002 <span class="mode" id="m-PLC-002">…</span></h2>
+    <div class="pid"><svg class="pid-svg" viewBox="0 0 320 210">
+      <path class="pipe" d="M10 60 H40"/><path class="pipe-flow" data-flow="t1" d="M10 60 H40"/><text x="24" y="50" class="lbl" text-anchor="middle">from T-101</text>
+      <g class="pump" id="p202"><circle class="body" cx="56" cy="60" r="16"/><g class="imp"><path d="M56 48 L56 72 M44 60 L68 60 M47.5 51.5 L64.5 68.5 M64.5 51.5 L47.5 68.5"/></g></g><text x="56" y="88" class="lbl" text-anchor="middle">P-202</text>
+      <path class="pipe" d="M72 60 H110"/><path class="pipe-flow" data-flow="t1" d="M72 60 H110"/>
+      <rect id="f201" class="filter" x="110" y="35" width="60" height="50" rx="4"/><text x="140" y="56" class="val" text-anchor="middle" style="font-size:10px">F-201</text><text id="pdt201" x="140" y="72" class="lbl" text-anchor="middle" style="fill:#fff">-- kPa</text>
+      <path class="pipe" d="M170 60 H230"/><path class="pipe-flow" data-flow="t1" d="M170 60 H230"/>
+      <g class="pump" id="p201"><circle class="body" cx="200" cy="20" r="12"/><g class="imp"><path d="M200 11 L200 29 M191 20 L209 20"/></g></g><text x="222" y="24" class="lbl">Cl2 P-201</text>
+      <path class="pipe" d="M200 32 V60" style="stroke-width:3"/><path class="pipe-flow chem" data-flow="t2" d="M200 32 V60"/>
+      <rect class="tank" x="230" y="40" width="80" height="125"/><rect id="t201" class="level" x="231" y="164" width="78" height="0"/>
+      <text x="270" y="181" class="lbl" text-anchor="middle">T-201 CONTACT TANK</text><text id="at201" x="270" y="98" class="val" text-anchor="middle">-- mg/L</text><text id="at202" x="270" y="114" class="lbl" text-anchor="middle">pH --</text>
     </svg></div>
-    <div class="vals" id="v-PLC-002"></div>
-    <div class="ctl" id="k-PLC-002"></div>
+    <div class="gauges"><div class="gauge" data-gauge="PLC-002|AT-201|0|4|mg/L"></div><div class="gauge" data-gauge="PLC-002|FT-201|0|200|m3/h"></div><div class="gauge" data-gauge="PLC-002|PDT-201|0|80|kPa"></div></div>
+    <div class="vals" id="v-PLC-002"></div><div class="ctl" id="k-PLC-002"></div>
   </div>
-  <div class="card" id="c-dist"><h2>DISTRIBUTION — PLC-003 <span class="mode" id="m-PLC-003">…</span></h2>
-    <div class="pid"><svg viewBox="0 0 320 190">
-      <line x1="10" y1="60" x2="40" y2="60" stroke="#94A3B8" stroke-width="2"/><text x="24" y="52" fill="#94A3B8" font-size="8" text-anchor="middle" font-family="monospace">from T-201</text>
-      <rect x="40" y="40" width="80" height="120" fill="#0B1220" stroke="#94A3B8"/>
-      <rect id="t301" x="41" y="159" width="78" height="0" fill="#0EA5E9" opacity=".8"/>
-      <text x="80" y="176" fill="#94A3B8" font-size="9" text-anchor="middle" font-family="monospace">T-301 CLEARWELL</text>
-      <text id="lt301" x="80" y="95" fill="#fff" font-size="13" text-anchor="middle" font-family="monospace" font-weight="bold">--%</text>
-      <line x1="120" y1="150" x2="160" y2="150" stroke="#94A3B8" stroke-width="2"/><line x1="160" y1="150" x2="160" y2="50" stroke="#94A3B8" stroke-width="2"/>
-      <line x1="160" y1="50" x2="176" y2="50" stroke="#94A3B8" stroke-width="2"/><line x1="160" y1="110" x2="176" y2="110" stroke="#94A3B8" stroke-width="2"/>
-      <circle id="p301" cx="192" cy="50" r="16" fill="#334155" stroke="#94A3B8"/><text x="192" y="54" fill="#fff" font-size="9" text-anchor="middle" font-family="monospace">P-301</text>
-      <circle id="p302" cx="192" cy="110" r="16" fill="#334155" stroke="#94A3B8"/><text x="192" y="114" fill="#fff" font-size="9" text-anchor="middle" font-family="monospace">P-302</text>
-      <line x1="208" y1="50" x2="240" y2="50" stroke="#94A3B8" stroke-width="2"/><line x1="208" y1="110" x2="240" y2="110" stroke="#94A3B8" stroke-width="2"/><line x1="240" y1="50" x2="240" y2="110" stroke="#94A3B8" stroke-width="2"/>
-      <line x1="240" y1="80" x2="300" y2="80" stroke="#94A3B8" stroke-width="2"/>
-      <text x="270" y="72" fill="#94A3B8" font-size="8" text-anchor="middle" font-family="monospace">PT-301</text>
-      <text id="pt301" x="270" y="98" fill="#fff" font-size="13" text-anchor="middle" font-family="monospace" font-weight="bold">-- bar</text>
-      <text x="270" y="130" fill="#94A3B8" font-size="8" text-anchor="middle" font-family="monospace">NETWORK</text>
+  <div class="card"><h2>DISTRIBUTION — PLC-003 <span class="mode" id="m-PLC-003">…</span></h2>
+    <div class="pid"><svg class="pid-svg" viewBox="0 0 320 210">
+      <path class="pipe" d="M10 60 H40"/><path class="pipe-flow" data-flow="d1" d="M10 60 H40"/><text x="24" y="50" class="lbl" text-anchor="middle">from T-201</text>
+      <rect class="tank" x="40" y="40" width="80" height="125"/><rect id="t301" class="level" x="41" y="164" width="78" height="0"/>
+      <text x="80" y="181" class="lbl" text-anchor="middle">T-301 CLEARWELL</text><text id="lt301" x="80" y="98" class="val" text-anchor="middle">--%</text>
+      <path class="pipe" d="M120 150 H160 V50 H176 M160 110 H176"/>
+      <path class="pipe-flow" data-flow="d2" d="M120 150 H160 V50 H176"/><path class="pipe-flow" data-flow="d3" d="M160 110 H176"/>
+      <g class="pump" id="p301"><circle class="body" cx="192" cy="50" r="16"/><g class="imp"><path d="M192 38 L192 62 M180 50 L204 50 M183.5 41.5 L200.5 58.5 M200.5 41.5 L183.5 58.5"/></g></g><text x="192" y="30" class="lbl" text-anchor="middle">P-301</text>
+      <g class="pump" id="p302"><circle class="body" cx="192" cy="110" r="16"/><g class="imp"><path d="M192 98 L192 122 M180 110 L204 110 M183.5 101.5 L200.5 118.5 M200.5 101.5 L183.5 118.5"/></g></g><text x="192" y="140" class="lbl" text-anchor="middle">P-302</text>
+      <path class="pipe" d="M208 50 H240 V110 H208 M240 80 H300"/><path class="pipe-flow" data-flow="d2" d="M208 50 H240 V80 H300"/><path class="pipe-flow" data-flow="d3" d="M208 110 H240 V80"/>
+      <text x="270" y="70" class="lbl" text-anchor="middle">PT-301</text><text id="pt301" x="270" y="100" class="val" text-anchor="middle">-- bar</text><text x="270" y="130" class="lbl" text-anchor="middle">NETWORK</text>
     </svg></div>
-    <div class="vals" id="v-PLC-003"></div>
-    <div class="ctl" id="k-PLC-003"></div>
+    <div class="gauges"><div class="gauge" data-gauge="PLC-003|PT-301|0|6|bar"></div><div class="gauge" data-gauge="PLC-003|LT-301|0|100|%"></div><div class="gauge" data-gauge="PLC-003|FT-301|0|230|m3/h"></div></div>
+    <div class="vals" id="v-PLC-003"></div><div class="ctl" id="k-PLC-003"></div>
   </div>
-  <div class="card" id="alarms"><h2>ALARMS &amp; INTERLOCKS</h2><ul id="alarmlist"></ul></div>
-  <div class="card" id="trend"><h2>TREND <small>LT-101 level % · AT-201 chlorine mg/L ×20 · PT-301 pressure bar ×20</small></h2><canvas id="tr" width="1200" height="160"></canvas></div>
+  <div class="card" id="alarms"><h2>ALARMS &amp; INTERLOCKS <span class="mode" id="alarmCount"></span></h2><ul id="alarmlist"></ul></div>
+  <div class="card" id="trend"><h2>TREND <span class="mode">LT-101 level % · AT-201 chlorine mg/L ×20 · PT-301 pressure bar ×20</span></h2><canvas id="tr" width="1200" height="190"></canvas></div>
 </main>
-<footer>0xPlant Water Works · simulated plant for the 0xPlant lab · operator writes go through the 0xPlant protective conduits</footer>
+<footer>0xPlant Water Works · simulated plant for the 0xPlant lab · operator writes go through the 0xPlant protective conduits · a rejected write is shown with the Modbus exception the conduit returned</footer>
 <div id="toast"></div>
 <script>
 const fmt=(v,d)=>v==null?'--':Number(v).toFixed(d);
 const VIEW={
  'PLC-001':[['LT-101',1],['FT-101',0],['AT-101',1],['SC-101',0],['IT-101',1],['LT-100',2],['FT-201-R',0],['LEVEL_START_SP',1],['LEVEL_STOP_SP',1],['PUMP_SPEED_SP',0],['LAHH_LIMIT',1],['PUMP_MAX_SPEED',0]],
- 'PLC-002':[['FT-201',0],['AT-201',2],['AT-202',2],['PDT-201',1],['LT-201',1],['SC-201',0],['LT-101-R',1],['CL2_SP',2],['FLOW_SP',0],['BACKWASH_DP_SP',0],['AAHH_LIMIT',2],['PI_KP',2]],
+ 'PLC-002':[['FT-201',0],['AT-201',2],['AT-202',2],['PDT-201',1],['LT-201',1],['SC-201',0],['LT-101-R',1],['LT-301-R',1],['CL2_SP',2],['FLOW_SP',0],['BACKWASH_DP_SP',0],['AAHH_LIMIT',2]],
  'PLC-003':[['LT-301',1],['PT-301',2],['FT-301',0],['FQ-301',0],['SC-301',0],['SC-302',0],['FT-201-R',0],['PRESSURE_SP',2],['LAG_START_DELTA',2],['LALL_LIMIT',1],['PAHH_LIMIT',2],['MAX_SPEED',0]]};
 const CTL={
  'PLC-001':{sp:[['LEVEL_START_SP','Start pump below %'],['LEVEL_STOP_SP','Stop pump above %'],['PUMP_SPEED_SP','Pump speed %']],btn:[['PUMP_START_CMD','Start P-101',1,'primary'],['PUMP_STOP_CMD','Stop P-101',1,'danger'],['VALVE_OPEN_CMD','Toggle MOV-101','toggle','']]},
@@ -130,39 +133,51 @@ const CTL={
  'PLC-003':{sp:[['PRESSURE_SP','Pressure SP bar'],['LAG_START_DELTA','Lag start delta bar']],btn:[['P301_RUN_CMD','Toggle P-301','toggle',''],['P302_RUN_CMD','Toggle P-302','toggle',''],['STOP_ALL_CMD','Stop all',1,'danger']]}};
 const ALARMS={
  'PLC-001':[['LAHH_TRIP','T-101 level high-high interlock','trip'],['TURB_HIGH','Raw water turbidity high','alarm'],['LALL_ALARM','T-101 level low-low','alarm']],
- 'PLC-002':[['AAHH_TRIP','Chlorine residual high-high interlock','trip'],['AALL_ALARM','Chlorine residual low','alarm'],['DP_HIGH','Filter F-201 dP high','alarm']],
+ 'PLC-002':[['AAHH_TRIP','Chlorine residual high-high interlock','trip'],['AALL_ALARM','Chlorine residual low','alarm'],['DP_HIGH','Filter F-201 dP high','alarm'],['CLEARWELL_HOLD','Transfer held: clearwell high','alarm']],
  'PLC-003':[['LALL_TRIP','Clearwell low-low interlock','trip'],['PAHH_TRIP','Network pressure high-high interlock','trip'],['PALL_ALARM','Network pressure low','alarm']]};
-const hist=[];let built={};
-function toast(msg,cls){const t=document.getElementById('toast');t.textContent=msg;t.className=cls;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',4000);}
+const hist=[];let built={},latest={};
+function toast(msg,cls){const t=document.getElementById('toast');t.textContent=msg;t.className=cls;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',4500);}
 async function write(plc,tag,value){const r=await fetch('/api/write',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plc,tag,value})});const j=await r.json();if(j.ok)toast(`${plc} ${tag} ← ${value}`,'ok');else toast(`${plc} ${tag}: ${j.error}`,'err');}
 function buildControls(plc,tags){const k=document.getElementById('k-'+plc);const c=CTL[plc];let h=`<div class="row"><label>Control mode</label><button data-mode="1">AUTO</button><button data-mode="0">MANUAL</button></div>`;
  for(const [tag,label] of c.sp)h+=`<div class="row"><label>${label}</label><input data-sp="${tag}" value="${fmt(tags[tag],2)}"><button data-apply="${tag}">Apply</button></div>`;
  h+='<div class="row">'+c.btn.map(b=>`<button data-btn="${b[0]}" data-kind="${b[2]}" class="${b[3]}">${b[1]}</button>`).join('')+'</div>';k.innerHTML=h;
  k.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>write(plc,'AUTO_MODE',+b.dataset.mode));
  k.querySelectorAll('[data-apply]').forEach(b=>b.onclick=()=>write(plc,b.dataset.apply,parseFloat(k.querySelector(`[data-sp="${b.dataset.apply}"]`).value)));
+ k.querySelectorAll('[data-sp]').forEach(i=>i.addEventListener('keydown',e=>{if(e.key==='Enter')write(plc,i.dataset.sp,parseFloat(i.value));}));
  k.querySelectorAll('[data-btn]').forEach(b=>b.onclick=()=>{const cur=(latest[plc]||{})[b.dataset.btn]||0;write(plc,b.dataset.btn,b.dataset.kind==='toggle'?(cur?0:1):1);});built[plc]=true;}
-let latest={};
-function render(s){const links=[];const now=new Date(s.ts*1000);
+function gauge(el,v,lo,hi,unit,name){const pct=Math.max(0,Math.min(1,((v??lo)-lo)/(hi-lo)));const a=Math.PI*(1-pct);const r=44,cx=55,cy=56;const x=cx+r*Math.cos(Math.PI-Math.PI*pct),y=cy-r*Math.sin(Math.PI*pct);const big=pct>0.5?1:0;
+ el.innerHTML=`<svg viewBox="0 0 110 64"><path d="M11 56 A44 44 0 0 1 99 56" stroke="#243352" stroke-width="8" fill="none" stroke-linecap="round"/><path d="M11 56 A44 44 0 ${big} 1 ${x.toFixed(1)} ${y.toFixed(1)}" stroke="${pct>0.9||pct<0.05?'#EF4444':'#38BDF8'}" stroke-width="8" fill="none" stroke-linecap="round"/></svg><div class="g-val">${fmt(v,unit==='mg/L'||unit==='bar'?2:unit==='%'||unit==='NTU'||unit==='kPa'?1:0)}</div><div class="g-lbl">${name} ${unit}</div>`;void a;}
+function render(s){const links=[];
  for(const [plc,st] of Object.entries(s.plcs)){const t=st.tags||{};latest[plc]=t;links.push(`<span><i class="dot ${st.online?'on':''}"></i>${plc}</span>`);
+  if(!VIEW[plc]||!document.getElementById('m-'+plc))continue;   // a PLC without a panel on this screen
   if(!built[plc]&&st.online)buildControls(plc,t);
   const m=document.getElementById('m-'+plc);if(st.online){m.textContent=t.AUTO_ACTIVE?'AUTO':'MANUAL';m.className='mode '+(t.AUTO_ACTIVE?'auto':'man');}else{m.textContent='OFFLINE';m.className='mode';}
-  const v=document.getElementById('v-'+plc);v.innerHTML=VIEW[plc].map(([n,d])=>{const def=(st.tag_defs||[]).find(x=>x.name===n)||{};return `<div><span>${n}</span><b>${fmt(t[n],d)} ${def.unit||''}</b></div>`}).join('');
-  if(!st.online)v.innerHTML=`<div class="a">${st.error||'offline'}</div>`;
+  const k=document.getElementById('k-'+plc);k.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('sel',!!t.AUTO_ACTIVE===(b.dataset.mode==='1')));
+  k.querySelectorAll('[data-btn][data-kind="toggle"]').forEach(b=>b.classList.toggle('sel',!!t[b.dataset.btn]));
+  const v=document.getElementById('v-'+plc);v.innerHTML=VIEW[plc].map(([n,d])=>{const def=(st.tag_defs||[]).find(x=>x.name===n)||{};return `<div title="${def.desc||''}"><span>${n}</span><b>${fmt(t[n],d)} ${def.unit||''}</b></div>`}).join('');
+  if(!st.online)v.innerHTML=`<div style="color:#FCA5A5">${st.error||'offline'}</div>`;
  }
  document.getElementById('links').innerHTML=links.join('');
  const t1=latest['PLC-001']||{},t2=latest['PLC-002']||{},t3=latest['PLC-003']||{};
  const sim=t1.SIM_HOUR??t2.SIM_HOUR??t3.SIM_HOUR;if(sim!=null){const h=Math.floor(sim),mi=Math.floor((sim-h)*60);document.getElementById('clock').textContent=`${String(h).padStart(2,'0')}:${String(mi).padStart(2,'0')}`;}
  const lvl=(id,pct,top,h)=>{const e=document.getElementById(id);const hh=Math.max(0,Math.min(h,h*(pct||0)/100));e.setAttribute('height',hh);e.setAttribute('y',top+h-hh);};
- lvl('t101',t1['LT-101'],81,88);lvl('t201',t2['LT-201'],41,118);lvl('t301',t3['LT-301'],41,118);
+ lvl('t101',t1['LT-101'],81,93);lvl('t201',t2['LT-201'],41,123);lvl('t301',t3['LT-301'],41,123);
  document.getElementById('lt101').textContent=fmt(t1['LT-101'],1)+'%';document.getElementById('at201').textContent=fmt(t2['AT-201'],2)+' mg/L';document.getElementById('at202').textContent='pH '+fmt(t2['AT-202'],2);document.getElementById('pdt201').textContent=fmt(t2['PDT-201'],1)+' kPa';document.getElementById('lt301').textContent=fmt(t3['LT-301'],1)+'%';document.getElementById('pt301').textContent=fmt(t3['PT-301'],2)+' bar';
- const run=(id,on,col)=>document.getElementById(id).setAttribute('fill',on?(col||'#16A34A'):'#334155');
- run('p101',t1.PUMP_RUNNING);run('mov101',t1.VALVE_OPEN,'#0EA5E9');run('p202',t2.TRANSFER_RUNNING);run('p201',t2.DOSING_RUNNING,'#D97706');run('f201',t2.BACKWASH_ACTIVE,'#7C3AED');run('p301',t3.P301_RUNNING);run('p302',t3.P302_RUNNING);
- const al=[];for(const [plc,list] of Object.entries(ALARMS))for(const [tag,txt,cls] of list)if((latest[plc]||{})[tag])al.push(`<li class="${cls}">${plc} · ${txt}</li>`);
- for(const [plc,st] of Object.entries(s.plcs))if(!st.online)al.push(`<li class="trip">${plc} · communication lost (${st.error||''})</li>`);
+ const on=(id,v)=>document.getElementById(id).classList.toggle('on',!!v);
+ on('p101',t1.PUMP_RUNNING);on('mov101',t1.VALVE_OPEN);on('p202',t2.TRANSFER_RUNNING);on('p201',t2.DOSING_RUNNING);document.getElementById('f201').classList.toggle('bw',!!t2.BACKWASH_ACTIVE);on('p301',t3.P301_RUNNING);on('p302',t3.P302_RUNNING);
+ const flows={i1:t1['FT-101']>1,i2:t1['FT-201-R']>1,t1:t2['FT-201']>1,t2:t2.DOSING_RUNNING,d1:t3['FT-201-R']>1,d2:t3.P301_RUNNING,d3:t3.P302_RUNNING};
+ document.querySelectorAll('.pipe-flow').forEach(p=>p.classList.toggle('on',!!flows[p.dataset.flow]));
+ document.querySelectorAll('.gauge[data-gauge]').forEach(g=>{const [plc,tag,lo,hi,unit]=g.dataset.gauge.split('|');gauge(g,(latest[plc]||{})[tag],+lo,+hi,unit,tag);});
+ const al=[],trips=[];for(const [plc,list] of Object.entries(ALARMS))for(const [tag,txt,cls] of list)if((latest[plc]||{})[tag]){al.push(`<li class="${cls}">${plc} · ${txt}</li>`);if(cls==='trip')trips.push(`${plc} ${txt}`);}
+ for(const [plc,st] of Object.entries(s.plcs))if(!st.online){al.push(`<li class="trip">${plc} · communication lost (${st.error||''})</li>`);trips.push(`${plc} offline`);}
  document.getElementById('alarmlist').innerHTML=al.length?al.join(''):'<li class="none">No active alarms</li>';
+ const ac=document.getElementById('alarmCount');ac.textContent=al.length?`${al.length} active`:'clear';ac.className='mode '+(al.length?'man':'auto');
+ const b=document.getElementById('banner');b.classList.toggle('on',trips.length>0);document.getElementById('bannerText').textContent=trips.join(' · ');
  hist.push([t1['LT-101']||0,(t2['AT-201']||0)*20,(t3['PT-301']||0)*20]);if(hist.length>600)hist.shift();drawTrend();}
-function drawTrend(){const c=document.getElementById('tr'),g=c.getContext('2d');g.clearRect(0,0,c.width,c.height);g.strokeStyle='#243352';for(let y=0;y<=100;y+=25){g.beginPath();g.moveTo(0,c.height-y/100*c.height);g.lineTo(c.width,c.height-y/100*c.height);g.stroke();}
- const cols=['#0EA5E9','#F59E0B','#22C55E'];for(let k=0;k<3;k++){g.strokeStyle=cols[k];g.lineWidth=1.5;g.beginPath();hist.forEach((p,i)=>{const x=i/600*c.width,y=c.height-Math.max(0,Math.min(100,p[k]))/100*c.height;i?g.lineTo(x,y):g.moveTo(x,y);});g.stroke();}}
+function drawTrend(){const c=document.getElementById('tr'),g=c.getContext('2d');g.clearRect(0,0,c.width,c.height);const L=44,B=22,W=c.width-L-10,H=c.height-B-10;
+ g.strokeStyle='#243352';g.fillStyle='#94A3B8';g.font='11px monospace';g.textAlign='right';for(let y=0;y<=100;y+=25){const yy=10+H-y/100*H;g.beginPath();g.moveTo(L,yy);g.lineTo(L+W,yy);g.stroke();g.fillText(y,L-6,yy+4);}
+ g.textAlign='center';for(let i=0;i<=5;i++){const x=L+W*i/5;g.fillText(i===5?'now':`-${10-i*2} min`,x,c.height-6);}
+ const cols=['#0EA5E9','#F59E0B','#22C55E'],names=['LT-101 %','AT-201 ×20','PT-301 ×20'];for(let k=0;k<3;k++){g.strokeStyle=cols[k];g.lineWidth=1.8;g.beginPath();hist.forEach((p,i)=>{const x=L+(i+(600-hist.length))/600*W,y=10+H-Math.max(0,Math.min(100,p[k]))/100*H;i?g.lineTo(x,y):g.moveTo(x,y);});g.stroke();g.fillStyle=cols[k];g.fillRect(L+10+k*130,14,14,3);g.fillStyle='#E2E8F0';g.textAlign='left';g.fillText(names[k],L+28+k*130,18);}}
 async function tick(){try{const r=await fetch('/api/state');render(await r.json());}catch(e){document.getElementById('links').innerHTML='<span><i class="dot"></i>HMI backend unreachable</span>';}}
 setInterval(tick,1000);tick();
 </script>

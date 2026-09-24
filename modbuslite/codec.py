@@ -15,6 +15,8 @@ FC_WRITE_COIL = 0x05
 FC_WRITE_REGISTER = 0x06
 FC_WRITE_COILS = 0x0F
 FC_WRITE_REGISTERS = 0x10
+FC_MASK_WRITE = 0x16     # Mask Write Register (address not decoded here; policy treats as write)
+FC_READ_WRITE_REGISTERS = 0x17
 FC_ENCAP = 0x2B          # Encapsulated Interface Transport
 MEI_DEVICE_ID = 0x0E     # Read Device Identification
 

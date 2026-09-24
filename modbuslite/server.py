@@ -99,10 +99,19 @@ class DeviceIdentity:
         else:
             return codec.build_exception(codec.FC_ENCAP, codec.EXC_ILLEGAL_VALUE)
         ids = [i for i in ids if i >= object_id] if code != 0x04 else ids
-        body = bytearray([codec.FC_ENCAP, codec.MEI_DEVICE_ID, code, 0x82, 0x00, 0x00, len(ids)])
+        if not ids:
+            return codec.build_exception(codec.FC_ENCAP, codec.EXC_ILLEGAL_ADDRESS)
+        body = bytearray([codec.FC_ENCAP, codec.MEI_DEVICE_ID, code, 0x82, 0x00, 0x00, 0])
+        count = 0
         for i in ids:
-            value = objs[i].encode("ascii", "replace")[:255]
+            value = objs[i].encode("ascii", "replace")[:120]
+            if len(body) + 2 + len(value) > codec.MAX_PDU:
+                body[4] = 0xFF          # more follows
+                body[5] = i             # next object id
+                break
             body += bytes([i, len(value)]) + value
+            count += 1
+        body[6] = count
         return bytes(body)
 
 
