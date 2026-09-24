@@ -119,8 +119,9 @@ footer{padding:10px 22px;color:var(--muted);font-size:.7rem;font-family:var(--mo
   <div class="card" id="alarms"><h2>ALARMS &amp; INTERLOCKS <span class="mode" id="alarmCount"></span></h2><ul id="alarmlist"></ul></div>
   <div class="card" id="trend"><h2>TREND <span class="mode">LT-101 level % · AT-201 chlorine mg/L ×20 · PT-301 pressure bar ×20</span></h2><canvas id="tr" width="1200" height="190"></canvas></div>
 </main>
-<footer>0xPlant Water Works · simulated plant for the 0xPlant lab · operator writes go through the 0xPlant protective conduits · a rejected write is shown with the Modbus exception the conduit returned</footer>
+<footer><a href="index.html" style="color:#38BDF8">← 0xPlant console demo</a> · 0xPlant Water Works · simulated plant for the 0xPlant lab · operator writes go through the 0xPlant protective conduits · a rejected write is shown with the Modbus exception the conduit returned</footer>
 <div id="toast"></div>
+<script src="hmi-demo-data.js"></script>
 <script>
 const fmt=(v,d)=>v==null?'--':Number(v).toFixed(d);
 const VIEW={

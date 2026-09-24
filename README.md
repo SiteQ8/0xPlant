@@ -13,7 +13,7 @@
 
 **Open source ICS/OT security: a real (simulated) water treatment plant, protected by 0xPlant.**
 
-[Quick Start](#quick-start) · [The Plant](#the-plant) · [0xPlant](#0xplant-the-security-tool) · [Detection Rules](#detection-rules) · [Verify the Controls](#verify-the-controls) · [Live UI Demo](https://siteq8.github.io/0xPlant)
+[Live Demo](https://siteq8.github.io/0xPlant) · [Quick Start](#quick-start) · [The Plant](#the-plant) · [0xPlant](#0xplant-the-security-tool) · [Detection Rules](#detection-rules) · [Verify the Controls](#verify-the-controls)
 
 </div>
 
@@ -55,6 +55,8 @@
 | Process integrity (dark mode, live trends) | Operator HMI (animated P&ID) |
 |---|---|
 | ![Process](docs/screenshots/console-process-dark.png) | ![HMI](docs/screenshots/hmi.png) |
+
+**Try it now:** the [live demo](https://siteq8.github.io/0xPlant) runs the real console code in your browser, replaying a dataset captured from an actual lab run (sign in as `admin`, `engineer`, `soc` or `operator` with `Plant@2025`; acknowledge alerts, approve changes, open drawers). The [operator HMI demo](https://siteq8.github.io/0xPlant/hmi.html) replays the plant the same way. Rebuild both from your own lab run with `python scripts/build_site.py`.
 
 The console is a single page under a strict Content Security Policy with no external JavaScript: canvas charts, an SVG topology map with animated flows, detail drawers on every row, sortable and filterable tables (`/` focuses the filter), dark mode, and toasts for new critical alerts. The HMI shows an animated P&ID with running pumps, flowing pipes, tank levels, arc gauges, a trend with axes and an interlock banner.
 
@@ -243,6 +245,7 @@ All of these run against your own lab and are exercised by the test-suite.
 | `config/plant.local.yaml`, `config/plant.docker.yaml` | PLC definitions (program, listen address, identity, remote links), HMI targets, time scale |
 | `config/oxplant.local.yaml`, `config/oxplant.docker.yaml` | Console (users, TLS, outputs), zones, approved assets, conduits and policies, sensors, discovery scopes, integrity targets (tags, envelopes, golden values) |
 | `docker-compose.yml` | The segmented lab |
+| `scripts/build_site.py` | Runs the local lab, captures console and HMI data, and builds the GitHub Pages demo in `docs/` |
 
 `${ENV_VAR}` references in the 0xPlant configuration are expanded from the environment (used for the sensor token).
 
@@ -257,7 +260,7 @@ oxplant/      the security tool: policy, conduit, discovery, integrity, store, c
 config/       local and Docker configurations
 scripts/      run_local.py
 tests/        pytest suite (includes pymodbus interoperability)
-docs/         GitHub Pages UI demo
+docs/         GitHub Pages live demo (built by scripts/build_site.py from the real UI + captured data)
 ```
 
 ## Testing
